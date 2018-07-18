@@ -1,0 +1,2 @@
+# .jamesrc
+Shell profile

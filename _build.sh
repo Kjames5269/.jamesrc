@@ -8,7 +8,7 @@ build () {
 
 	WORKSPACE=$(cat ~/.jamesrc/.workspaceLocationFile)
 
-	MVNCMD="$(cat ~/.jamesrc/.workspaceDefaultMaven)"
+	MVNCMD=($(cat ~/.jamesrc/.workspaceDefaultMaven))
 	
 	fileChecks
 	
@@ -61,15 +61,16 @@ build () {
 		fi
 
 		if [[ $1 == "-ls" ]]; then
-			FOUND=1
 			LS=$ON
 
 			shift
 			continue
 		fi
 	
-		if [[ $1 == "--branch=*" ]]; then
+		if [[ $1 =~ ^--branch=.+$ ]]; then
 			BRANCH=$(echo $1 | cut -f2- -d '=')
+
+			shift
 			continue
 		fi
 	
@@ -78,10 +79,10 @@ build () {
 			echo "This script is intented to build any project with the ddf alliance setup with the current branch appended"
 			echo -e "Mvn Defaults: $(cat ~/.jamesrc/.workspaceDefaultMaven)\nDirectory Path: $(cat ~/.jamesrc/.workspaceLocationFile)"
 			echo -e "Supported args:\n\t-s to skip build if one exist\n\t--reset to delete saved data \n\t\t--reset-maven\n\t\t--reset-path)"
-			echo -e "\t-m override using default maven commands (Can't override clean install)\n\t--hero[path] hero to /hero [TODO]"
+			echo -e "\t-m override using default maven commands (Can't override clean install)\n\t"
 			echo -e "\t-v verbose to print maven\n\t-ls to show directories in your saved directory\n\t-[number] change the thread count"
 			echo -e "\t-b to boot after build (only works for ddf alliance)"
-			echo -e "\t--branch=branchName sets the branch to the given branch instead of the current"
+			echo -e "\t--branch=branchName sets the branch to the given branch instead of the current (stashes changes)"
 			echo -e "\t-l runs git fetch --all; git pull -r. Pray for no merge conflicts"
 			echo -e "\nAfter the build name you can add additional maven arguements"
 			echo -e " > build -f -m -p /projects/src/ ddf [maven commands]"
@@ -89,19 +90,6 @@ build () {
 			return 0
 		fi
 
-		# Find a new workspace
-		if [[ $1 =~ ^--hero(.|\/)+$ ]]; then
-				
-			LIB=$(echo $1 | cut -f2- -d 'o')
-			if ! [[ $LIB =~ ^--hero.*/ ]]; then
-				LIB=$(echo ${LIB}/)
-			fi  
-		
-			shift
-			continue	
-			
-		fi
-		
 		FOUND=0	
 
 		arglen=$(echo ${#1})
@@ -125,7 +113,7 @@ build () {
 	
 			# Unset mvncmd variable
 			if [[ $ARGS == "m" ]]; then
-				MVNCMD=""
+				MVNCMD=("")
 				FOUND=1
 			fi
 	
@@ -177,14 +165,14 @@ build () {
 
 	FROM_PATH="${WORKSPACE}$1/distribution/$1/target/"
 	TO_PATH="${WORKSPACE}../${LIB}$1/"
-	
+
 	# Get the current git branch
 	fetched=$OFF
 
 	cd ${WORKSPACE}$1
-	if [[ $BRANCH == "" ]]; then
+	if [[ $BRANCH == "" ]] && [[ -f ".git" ]]; then
 		BRANCH=$(git branch | grep '\*' | cut -f2 -d '*' | tr ' ' '-')	
-	else
+	elif [[ -f .git ]]; then
 		fetched=$ON
 		git fetch --all
 		git checkout $BRANCH
@@ -197,10 +185,16 @@ build () {
 
 	if [ $LATEST -eq $ON ]; then
 		if [ $fetched -eq $OFF ] ;then
+		    echoinf "Stashing and fetching"
+		    git stash
 			git fetch --all
 		fi
 		# We pray for no merge conflicts
 		git pull -r
+		if [ $? -ne 0 ]; then
+		    echoinf "Merge Conflicts! stopping..."
+		    return 1
+		fi
 	fi
 
 	# Get the Zip file from the target location
@@ -215,9 +209,9 @@ build () {
 
 		# IF verbose is on then output to console not log
 		if [ $VERBOSE -eq $ON ]; then
-			mvn -T ${THREADS} clean install ${MVNCMD} ${@:2}
+			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2}
 		else
-			mvn -T ${THREADS} clean install ${MVNCMD} ${@:2} &> ~/lastbuild.log
+			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2} &> ~/lastbuild.log
 		fi
 
 		if [ $? -ne 0 ]; then
@@ -232,7 +226,9 @@ build () {
 			return 1
 		fi
 
-		echo "\033[0;32mBUILD SUCCESS\033[0m"
+        if [ $VERBOSE -eq $OFF ]; then
+		    echo "\033[0;32mBUILD SUCCESS\033[0m"
+		fi
 
 	fi	
 	        

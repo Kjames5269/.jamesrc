@@ -185,8 +185,10 @@ build () {
 
 	if [ $LATEST -eq $ON ]; then
 		if [ $fetched -eq $OFF ] ;then
-		    echoinf "Stashing and fetching"
-		    git stash
+		    if ! git diff-index --quiet HEAD --; then
+		        echoinf "Stashing changes on -${BRANCH}"
+		        git stash
+		    fi
 			git fetch --all
 		fi
 		# We pray for no merge conflicts

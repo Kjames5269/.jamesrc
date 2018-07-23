@@ -170,9 +170,9 @@ build () {
 	fetched=$OFF
 
 	cd ${WORKSPACE}$1
-	if [[ $BRANCH == "" ]] && [[ -f ".git" ]]; then
+	if [[ $BRANCH == "" ]] && [[ -d ".git" ]]; then
 		BRANCH=$(git branch | grep '\*' | cut -f2 -d '*' | tr ' ' '-')	
-	elif [[ -f .git ]]; then
+	elif [[ -d .git ]]; then
 		fetched=$ON
 		git fetch --all
 		git checkout $BRANCH
@@ -265,6 +265,7 @@ build () {
 	mv "${TO_PATH}${projname}" "$FROM_PATH"
 
 	if [[ $BRANCH != "" ]]; then
+	    echoinf "Renaming to ${nonZipDir}${BRANCH}"
 		mv "${nonZipDir}" "${nonZipDir}${BRANCH}"
 		cd "${nonZipDir}${BRANCH}/bin"
 	else

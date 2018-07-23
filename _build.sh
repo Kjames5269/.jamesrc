@@ -68,7 +68,7 @@ build () {
 		fi
 	
 		if [[ $1 =~ ^--branch=.+$ ]]; then
-			BRANCH=$(echo $1 | cut -f2- -d '=')
+			BRANCH="-$(echo $1 | cut -f2- -d '=')"
 
 			shift
 			continue

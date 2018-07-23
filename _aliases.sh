@@ -32,7 +32,9 @@ mvnhome() {
 	OLD_DIR=`pwd`
 	
 	cd "$OPENED_AT"
-	mvn clean install $@
+	MVNCMD=($(cat ~/.jamesrc/.workspaceDefaultMaven))
+    mvn clean install ${MVNCMD[*]} ${@}
+
 	cd "$OLD_DIR"
 }
 

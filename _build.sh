@@ -278,6 +278,8 @@ build () {
 		bash $1
 	fi
 
+	alias hero=".${TO_PATH}${nonZipDir}${BRANCH}/bin/$1"
+
 	cd $fdir
 
 	return 0

@@ -68,7 +68,7 @@ build () {
 		fi
 	
 		if [[ $1 =~ ^--branch=.+$ ]]; then
-			BRANCH="-$(echo $1 | cut -f2- -d '=')"
+			BRANCH="$(echo $1 | cut -f2- -d '=')"
 
 			shift
 			continue
@@ -181,6 +181,8 @@ build () {
 			echoerr "$BRANCH does not exist within $WORKSPACE$1"
 			return 1
 		fi
+
+		BRANCH="-${BRANCH}"
 	fi
 
 	if [ $LATEST -eq $ON ]; then
@@ -278,7 +280,7 @@ build () {
 		bash $1
 	fi
 
-	alias hero=".${TO_PATH}${nonZipDir}${BRANCH}/bin/$1"
+	alias hero="${TO_PATH}${nonZipDir}${BRANCH}/bin/$1"
 
 	cd $fdir
 

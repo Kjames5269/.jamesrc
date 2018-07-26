@@ -9,6 +9,7 @@ alias diretide="echo '༼ つ ◕_◕ ༽つ' | pbcopy"
 alias shrug="echo '¯\_(ツ)_/¯' | pbcopy"
 alias cdhome="cd $OPENED_AT"
 alias mvnerr="cat ~/lastbuild.log"
+alias ip="ifconfig | grep 'inet ' | grep -Fv 127.0.0.1 | cut -f2 -d ' '"
 
 #functions
 mkcd () {

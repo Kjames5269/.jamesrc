@@ -170,7 +170,7 @@ build () {
 	fetched=$OFF
 
 	cd ${WORKSPACE}$1
-	if [[ $BRANCH == "" ]] && [[ -d ".git" ]]; then
+	if [ -z $BRANCH ] && [[ -d ".git" ]]; then
 		BRANCH=$(git branch | grep '\*' | cut -f2 -d '*' | tr ' ' '-')	
 	elif [[ -d .git ]]; then
 		fetched=$ON

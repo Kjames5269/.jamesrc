@@ -114,3 +114,5 @@ djira() {
 		JIRA_NAME=${DJIRA_USR} jira ${ARGS}
 	fi
 }
+
+alias jira=djira

@@ -268,7 +268,7 @@ build () {
 
 	mv "${TO_PATH}${projname}" "$FROM_PATH"
 
-	if [[ $BRANCH != "" ]]; then
+	if [[ ! -z $BRANCH ]]; then
 	    echoinf "Renaming to ${nonZipDir}${BRANCH}"
 		mv "${nonZipDir}" "${nonZipDir}${BRANCH}"
 		cd "${nonZipDir}${BRANCH}/bin"

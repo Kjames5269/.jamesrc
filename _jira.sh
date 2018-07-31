@@ -45,7 +45,7 @@ djira() {
 
         DJIRA_TUPLE=$(grep ${PROJ} ~/.jamesrc/.workspaceJira)
         DJIRA_URL=$(echo ${DJIRA_TUPLE} | cut -f1,2 -d 'd')
-        DJIRA_USR=$(echo ${JIRA_ARR[$i]} | cut -f4 -d ':')
+        DJIRA_USR=$(echo ${DJIRA_TUPLE} | cut -f4 -d ':')
 
 	fi
 	
@@ -64,7 +64,7 @@ djira() {
 		
 		JIRA_REPO=$(echo ${JIRA_ARR[$i]} | cut -f3 -d ':')
 		
-		if [ $FOUND -eq -1 ]; then
+		if [ $FOUND -eq 0 ]; then
 			ARG_NAME=$(echo $1 | cut -f1 -d '-')
 		else
 			ARG_NAME=$1

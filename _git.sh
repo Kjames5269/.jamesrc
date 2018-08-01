@@ -36,7 +36,7 @@ gitWrap() {
         firstWord=$(echo ${msg} | cut -f1 -d ' ')
 
         if [[ "$firstWord" != "$currBranch" ]]; then
-            ARGS=("${1}" "-m" "\"${currBranch} ${msg}\"")
+            ARGS=("${1}" "-m" "${currBranch} ${msg}")
         else
             ARGS=("${1}" "-m" "\"${msg}\"")
         fi

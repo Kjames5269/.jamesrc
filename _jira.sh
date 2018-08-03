@@ -43,7 +43,7 @@ djira() {
     if [[ -d .git ]]; then
         PROJ=$(pwd | rev | cut -f1 -d '/' | rev)
 
-        DJIRA_TUPLE=$(grep ${PROJ} ~/.jamesrc/.workspaceJira)
+        DJIRA_TUPLE=$(grep -i ${PROJ} ~/.jamesrc/.workspaceJira)
         DJIRA_URL=$(echo ${DJIRA_TUPLE} | cut -f1,2 -d 'd')
         DJIRA_USR=$(echo ${DJIRA_TUPLE} | cut -f4 -d ':')
 
@@ -62,13 +62,15 @@ djira() {
 	# Loops through all Jira configs and see's if we match. If not use standard as it's probably a command
 	for (( i = 1; i < ${#JIRA_ARR[@]} + 1 ; ++i)) do
 		
-		JIRA_REPO=$(echo ${JIRA_ARR[$i]} | cut -f3 -d ':')
+		JIRA_REPO=$(echo ${JIRA_ARR[$i]} | cut -f3 -d ':' | tr a-z A-Z)
 		
 		if [ $FOUND -eq 0 ]; then
 			ARG_NAME=$(echo $1 | cut -f1 -d '-')
 		else
 			ARG_NAME=$1
 		fi
+
+		ARG_NAME=$(echo $ARG_NAME | tr a-z A-Z)
 
 		if [[ ${JIRA_REPO} == ${ARG_NAME} ]];then
 			PROJ=$1

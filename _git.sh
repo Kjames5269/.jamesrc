@@ -29,12 +29,20 @@ function gitWrap() {
 		length=$(($# - 1))
 
 		currBranch=$(cb)
-		
-		if [ $? -ne 0 ]; then
-			return 1
-		fi
 
 		ARGS=(${@:1:$length} $currBranch)
+    else
+        ARGS=($@)
+    fi
+
+
+    if [[ $1 == "push" ]]; then
+        getGitURL ${ARGS[@]}
+
+    elif [[ $1 == "pub" ]]; then
+        getGitURL ${ARGS[@]}
+        ARGS[1]="push"
+        openOnSuccess=1
 
 	elif [[ $1 == "add" ]]; then
 
@@ -130,6 +138,23 @@ function gitWrap() {
     elif [ $# -eq 3 ] && [[ $1 == "rebase" ]]; then
         ARGS=$(${1} "${2}/${3}")
 
+    elif [[ $1 == "request" ]]; then
+        if [ $# -eq 1 ] && ! [ -z ${lGIT_URL} ]; then
+            open ${lGIT_URL}
+        elif [ $# -gt 1 ]; then
+            unset lGIT_URL
+            getGitURL $@
+            if [ -z ${lGIT_URL} ]; then
+                echoerr "git $@ was not successful does the remote exist?"
+                return $?
+            fi
+            open ${lGIT_URL}
+        else
+            echoerr "git $@ was not able to obtain the last remote, did you push on this terminal?"
+            return $?
+        fi
+        return 0
+
 	else
 		ARGS=(${@})
 	fi
@@ -142,6 +167,11 @@ function gitWrap() {
 	else
 		${whichGit} ${ARGS[@]}
 	fi
+
+    if [ $? -eq 0 ] && [ ${openOnSuccess} -eq 1 ]; then
+        unset openOnSuccess
+        open ${lGIT_URL}
+    fi
 
 	# remove all set variables
 	unset ARGS
@@ -158,6 +188,32 @@ function gitWrap() {
 
 }
 
+function getGitURL() {
+
+    if [ $# -lt 2 ]; then
+        return 1
+    fi
+
+    while [[ $2 =~ ^-.+ ]]; do
+        shift
+    done
+
+    if [[ $# -eq 3 ]]; then
+        lGIT_BRANCH="tree/$3"
+    fi
+
+    lGIT_URL=$(${whichGit} config --get "remote.${2}.url")
+    # If it is SSH
+    if [[ ${lGIT_URL} =~ ^git@github.com:.*$ ]]; then
+        lGIT_URL="https://github.com/$(echo $lGIT_URL | cut -f2 -d ':' | rev | cut -f2- -d '.' | rev)/"
+    elif [[ ${lGIT_URL} =~ ^https.*@ ]]; then
+        lGIT_URL=$(echo lGIT_URL | cut -f1-3 -d '/')
+        unset lGIT_BRANCH
+    fi
+    lGIT_URL=${lGIT_URL}${lGIT_BRANCH}
+    unset lGIT_BRANCH
+
+}
 function mvnFmt() {
     if ! [ -d $1 ]; then
         return 0

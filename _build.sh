@@ -32,6 +32,7 @@ build () {
 	START=$OFF
 	BRANCH=""
 	LATEST=$OFF
+	NULLS=$OFF
 
 	THREADS=8
 	LIB="lib/"
@@ -127,6 +128,11 @@ build () {
 				LATEST=$ON
 			fi
 
+			if [[ $ARGS == "n" ]]; then
+			    FOUND=1
+			    NULLS=$ON
+			fi
+
 			if [[ $(echo "${1:$i:$len}") =~ ^[0-9]*$ ]]; then
 				FOUND=1
 				THREADS=$(echo "${1:$i:$len}")
@@ -214,15 +220,17 @@ build () {
 		# IF verbose is on then output to console not log
 		if [ $VERBOSE -eq $ON ]; then
 			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2}
-		else
+		elif [ $NULLS -eq $OFF ]; then
 			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2} &> ~/lastbuild.log
+	    else
+	    	mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2} &> /dev/null
 		fi
 
 		if [ $? -ne 0 ]; then
-			if [ $VERBOSE -eq $OFF ]; then
+			if [ $VERBOSE -eq $OFF ] && [ $NULLS -eq $OFF ]; then
 				echoerr "Build failed see log file at ~/lastbuild.log for more details"
 				tail -15 ~/lastbuild.log
-			fi
+		    fi
 
 			#echoinf "Deleting node* directories"
 			#find . -name "node*" -type d | xargs rm -rf

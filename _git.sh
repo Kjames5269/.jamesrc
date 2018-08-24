@@ -138,14 +138,14 @@ function gitWrap() {
     elif [ $# -eq 3 ] && [[ $1 == "rebase" ]]; then
         ARGS=$(${1} "${2}/${3}")
 
-    elif [[ $1 == "request" ]]; then
+    elif [[ ${ARGS[1]} == "request" ]]; then
         if [ $# -eq 1 ] && ! [ -z ${lGIT_URL} ]; then
             open ${lGIT_URL}
         elif [ $# -gt 1 ]; then
             unset lGIT_URL
-            getGitURL $@
+            getGitURL ${ARGS[@]}
             if [ -z ${lGIT_URL} ]; then
-                echoerr "git $@ was not successful does the remote exist?"
+                echoerr "git ${ARGS[@]} was not successful does the remote exist?"
                 return $?
             fi
             open ${lGIT_URL}
@@ -168,7 +168,7 @@ function gitWrap() {
 		${whichGit} ${ARGS[@]}
 	fi
 
-    if [ $? -eq 0 ] && [ ${openOnSuccess} -eq 1 ]; then
+    if [ $? -eq 0 ] && [ ! -z ${openOnSuccess} ]; then
         unset openOnSuccess
         open ${lGIT_URL}
     fi
@@ -203,6 +203,10 @@ function getGitURL() {
     fi
 
     lGIT_URL=$(${whichGit} config --get "remote.${2}.url")
+    # If the remote is not found
+    if [[ ${lGIT_URL} == "" ]]; then
+        return 1
+    fi
     # If it is SSH
     if [[ ${lGIT_URL} =~ ^git@github.com:.*$ ]]; then
         lGIT_URL="https://github.com/$(echo $lGIT_URL | cut -f2 -d ':' | rev | cut -f2- -d '.' | rev)/"
@@ -290,10 +294,9 @@ function gitFetch() {
 
         killFetchGuard
 
-        if [[ $(grep 'Unpacking objects:' .git/lastFetch) != "" ]]; then
-            echo -n "!" >&2
+        if [[ $(grep -i ^Fetched .git/lastFetch) != "" ]]; then
+            tput sc && tput cuf 300 && echo -e "\033[01;35m!\033[0m" && tput rc
         fi
-
 }
 
 function killFetchGuard() {
@@ -317,9 +320,10 @@ function autoFetch() {
             fi
         fi
 
+        echo $(date +'%Y%m%d%H%M') > '.git/CD_LAST_FETCH'
+
         ( gitFetch & ) 2>/dev/null
 
-        echo $(date +'%Y%m%d%H%M') > '.git/CD_LAST_FETCH'
     fi
 }
 

@@ -47,13 +47,21 @@ if [ -f ~/.jamesrc/.workspaceLocationFile ]; then
 	# creates a variable to the project for use in shell. ij $ddf
 	for file in $( ls $WORKSPACE ); do
 		tfile=$(echo "$file" | tr - _)
-		alias i${tfile}="cd ${WORKSPACE}${file}"
+		if [ -f "${WORKSPACE}${file}/build.config" ]; then
+		    temp=$(grep "master=" ${WORKSPACE}${file}/build.config | cut -f2 -d '=')
+		    alias i${tfile}="cd ${WORKSPACE}${file}/${temp}"
+		    export ${tfile}="${WORKSPACE}${file}/${temp}"
+
+		else
+		    alias i${tfile}="cd ${WORKSPACE}${file}"
+		    export ${tfile}="${WORKSPACE}${file}"
+
+		fi
 
 		# If it exist in the lib directory
 		if [ -d ${WORKSPACE}../lib/${file} ]; then 
 			alias l${tfile}="cd ${WORKSPACE}../lib/${file}"
 		fi
-		export ${tfile}="${WORKSPACE}${file}"
 	done
 	
 	alias pls="ls $WORKSPACE"

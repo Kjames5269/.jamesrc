@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 build () {
 
+    andClean() {
+        if [ ! -z building ]; then
+	        sed -i '' 's/building=./building='${building}'/' ${WORKSPACE}../${CONFIG}
+        fi
+        unset building
+        unset buildingNo
+        unset buildMavenCmd
+        unset buildMaven
+        unset back
+
+
+        return $1
+    }
+
+    CONFIG="build.config"
+
 	fdir=$(pwd)
 
 	#function call
@@ -154,11 +170,9 @@ build () {
 
 	#End of while loop parsing args
 	done
-	
-	#Done parsing args
 
 	if [ $LS -eq $ON ]; then
-		ls $WORKSPACE
+		ls ${WORKSPACE}
 		return $?
 	fi
 
@@ -167,15 +181,44 @@ build () {
 		return 1
 	fi
 
+	unset buildMaven
+	#Done parsing args
+	if [ -f ${WORKSPACE}${1}/${CONFIG} ]; then
+
+        masterName=$(grep "master=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
+	    building=$(grep "building=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
+
+	    if [ ${building} -eq 1 ]; then
+	        buildMaven="${masterName}"
+	        WORKSPACE="${WORKSPACE}${1}/${buildMaven}/"
+	    elif [ ${building} -eq 0 ]; then
+	    	buildMaven=$(ls -d ${WORKSPACE}${1}/*/ | grep -v "${masterName}$" | head -1 | rev | cut -f2 -d '/' | rev)
+	        WORKSPACE="${WORKSPACE}${1}/${buildMaven}/"
+	        slaveBuild=1
+	    else
+	        echoerr "Too many builds for now... (who needs to build 3 things anyway??)"
+	        return $?
+	    fi
+	    buildingNo=$(($building+1))
+	    sed -i '' 's/building=./building='${buildingNo}'/' ${WORKSPACE}../${CONFIG}
+	    buildMavenCmd="-Dmaven.repo.local=/Users/kyle.grady/.m2/${buildMaven}"
+	    back="../../../"
+
+    else
+        WORKSPACE=${WORKSPACE}${1}/
+        back="../../"
+    fi
+
+
 	# Path confirmed and workspace found
 
-	FROM_PATH="${WORKSPACE}$1/distribution/$1/target/"
-	TO_PATH="${WORKSPACE}../${LIB}$1/"
+	FROM_PATH="${WORKSPACE}distribution/$1/target/"
+	TO_PATH="${WORKSPACE}${back}${LIB}$1/"
 
 	# Get the current git branch
 	fetched=$OFF
 
-	cd ${WORKSPACE}$1
+	cd ${WORKSPACE}
 	if [ -z $BRANCH ] && [[ -d ".git" ]]; then
 		BRANCH=$(git branch | grep '\*' | cut -f2 -d '*' | tr ' ' '-')	
 	elif [[ -d .git ]]; then
@@ -184,8 +227,8 @@ build () {
 		git checkout $BRANCH
 		
 		if [ $? -ne 0 ]; then
-			echoerr "$BRANCH does not exist within $WORKSPACE$1"
-			return 1
+			echoerr "$BRANCH does not exist within $WORKSPACE"
+			return $(andClean 1)
 		fi
 
 		BRANCH="-${BRANCH}"
@@ -203,7 +246,7 @@ build () {
 		git pull -r
 		if [ $? -ne 0 ]; then
 		    echoinf "Merge Conflicts! stopping..."
-		    return 1
+		    return $(andClean 1)
 		fi
 	fi
 
@@ -213,17 +256,23 @@ build () {
 	# If it doesn't exist then run maven
 	if [ $? -ne 0 ] || [ $RESET -eq $ON ]; then
 		
-		cd ${WORKSPACE}$1
+		cd ${WORKSPACE}
+
+		if [ ! -z ${slaveBuild} ]; then
+			unset slaveBuild
+			echoinf "Setting up background build..."
+			rsync -au --delete "${WORKSPACE}../${masterName}/" "${WORKSPACE}"
+	    fi
 
 		echoinf "Maven Building..."
 
 		# IF verbose is on then output to console not log
 		if [ $VERBOSE -eq $ON ]; then
-			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2}
+			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2}
 		elif [ $NULLS -eq $OFF ]; then
-			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2} &> ~/lastbuild.log
+			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} &> ~/lastbuild.log
 	    else
-	    	mvn -T ${THREADS} clean install ${MVNCMD[*]} ${@:2} &> /dev/null
+	    	mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} &> /dev/null
 		fi
 
 		if [ $? -ne 0 ]; then
@@ -235,7 +284,7 @@ build () {
 			#echoinf "Deleting node* directories"
 			#find . -name "node*" -type d | xargs rm -rf
 
-			return 1
+			return $(andClean 1)
 		fi
 
         if [ $VERBOSE -eq $OFF ]; then
@@ -249,7 +298,7 @@ build () {
 
 	if [ $? -ne 0 ]; then
 		#Not a ddf build
-		return 0
+		return $(andClean 1)
 	fi
 
 	if [ ! -d $TO_PATH ]; then
@@ -292,6 +341,5 @@ build () {
 
 	cd $fdir
 
-	return 0
+	return $(andClean 0)
 }
-

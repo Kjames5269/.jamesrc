@@ -37,6 +37,7 @@ function gitWrap() {
 
 
     if [[ $1 == "push" ]]; then
+        # Called to set lGIT_URL for "request"
         getGitURL ${ARGS[@]}
 
     elif [[ $1 == "pub" ]]; then

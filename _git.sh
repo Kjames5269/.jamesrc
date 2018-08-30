@@ -139,6 +139,59 @@ function gitWrap() {
     elif [ $# -eq 3 ] && [[ $1 == "rebase" ]]; then
         ARGS=$(${1} "${2}/${3}")
 
+    elif [ $# -eq 2 ] && [[ $1 == "checkout" ]] && [[ $2 =~ ^:.* ]]; then
+        ogBranch=$(cb)
+
+        if [[ $2 =~ ^:$ ]]; then
+            neighborBranch=$(${whichGit} branch | grep $(cb | cut -f1,2 -d '-') | grep -v \*)
+            if [[ ${neighborBranch} == "" ]]; then
+                echoerr "git $@ has no neighbor branch"
+                return $?
+            elif [ $(echo ${neighborBranch} | wc -w) -ne 1 ]; then
+                echoerr "git $@ has too many neighbor branches"
+                return $?
+            fi
+            ARGS=($1 $(echo ${neighborBranch} | cut -c3-))
+        elif [[ $2 =~ ^:[^-].*$ ]]; then
+            baseBranch=$(${whichGit} branch | grep \* | cut -c3- | cut -f1,2 -d '-')
+            extension=$(echo $2 | cut -c2-)
+            neighborBranch=$(${whichGit} branch | grep ${baseBranch}-${extension})
+            if [ $? -ne 0 ]; then
+                neighborBaseBranch=$(${whichGit} branch | grep "^ *"${extension}"$" | cut -c3-)
+                if [[ ${neighborBaseBranch} == "" ]]; then
+                    echoerr "git $@ did not find a base branch to create a neighbor from"
+                    return $?
+                fi
+
+                getFirstJiraCommit
+
+                ${whichGit} checkout -b "${baseBranch}-${extension}"
+                if [ $? -ne 0 ]; then
+                    return $?
+                fi
+                ARGS=("rebase" "--onto" "${neighborBaseBranch}" "${firstJiraCommit}")
+            else
+                ARGS=($1 ${neighborBranch})
+            fi
+        else
+            baseBranch=$(${whichGit} branch | grep \* | cut -c3-)
+            count=$(echo ${baseBranch} | tr -cd '-' | wc -c)
+            if [ ${count} -le 1 ]; then
+                echoerr "git $@ requires you to be on a nonBase branch"
+                return $?
+            fi
+
+            getFirstJiraCommit
+
+            neighborBranch=$(echo ${baseBranch} | cut -f1-${count// /} -d '-')
+            ${whichGit} checkout -b ${neighborBranch}
+            if [ $? -ne 0 ]; then
+                return $?
+            fi
+
+            ARGS=("rebase" "--onto" "master" "${firstJiraCommit}")
+        fi
+
     elif [[ ${ARGS[1]} == "request" ]]; then
         if [ $# -eq 1 ] && ! [ -z ${lGIT_URL} ]; then
             open ${lGIT_URL}

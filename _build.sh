@@ -3,6 +3,8 @@ build () {
 
     andClean() {
         if [ ! -z building ]; then
+        	building=$(grep "building=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
+	        buildingNo=$(($building-1))
 	        sed -i '' 's/building=./building='${building}'/' ${WORKSPACE}../${CONFIG}
         fi
         unset building
@@ -201,7 +203,7 @@ build () {
 	    fi
 	    buildingNo=$(($building+1))
 	    sed -i '' 's/building=./building='${buildingNo}'/' ${WORKSPACE}../${CONFIG}
-	    buildMavenCmd="-Dmaven.repo.local=/Users/kyle.grady/.m2/${buildMaven}"
+	    buildMavenCmd=("-s" "/Users/kyle.grady/.m2/${buildMaven}Settings.xml")
 	    back="../../../"
 
     else
@@ -261,7 +263,7 @@ build () {
 		if [ ! -z ${slaveBuild} ]; then
 			unset slaveBuild
 			echoinf "Setting up background build..."
-			rsync -au --delete "${WORKSPACE}../${masterName}/" "${WORKSPACE}"
+			rsync -auz --delete "${WORKSPACE}../${masterName}/" "${WORKSPACE}"
 	    fi
 
 		echoinf "Maven Building..."

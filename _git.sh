@@ -61,10 +61,16 @@ function gitWrap() {
             fi
 
             mavenFmtDirName="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING/"
+            mavenFmtDirErrors="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING_ERRORS/"
+
+            if [ -d ${mavenFmtDirErrors} ]; then
+                rm -rf ${mavenFmtDirErrors}
+            fi
 
             if [ ${#listOfChanged[@]} -gt 0 ]; then
 
                 mkdir ${mavenFmtDirName}
+                mkdir ${mavenFmtDirErrors}
 
                 for i in ${listOfChanged[@]}; do
                     ( mvnFmt ${GIT_HOME}/${i} & )
@@ -83,12 +89,13 @@ function gitWrap() {
 
                 rm -d ${mavenFmtDirName}
 
-                if [ ! -z ${mvnFmtError} ]; then
-                    unset mvnFmtError
+                if [ $(/bin/ls ${mavenFmtDirErrors} | wc -l) -ne 0 ]; then
                     echoerr "One or more formatting errors occurred. Nothing was added"
+                    echoerr "Errors can be found here: ${mavenFmtDirErrors}"
                     return $?
                 fi
 
+                rm -d ${mavenFmtDirErrors}
             fi
 
         fi
@@ -226,6 +233,7 @@ function gitWrap() {
 	# remove all set variables
 	unset ARGS
 	unset mavenFmtDirName
+	unset mavenFmtDirError
 	unset firstJiraCommit
     unset listOfChanged
     unset GIT_HOME
@@ -284,20 +292,23 @@ function mvnFmt() {
         return 0
     fi
 
-    mkdir ${mavenFmtDirName}$sysparams[pid]
+    myPid=${sysparams[pid]}
 
-    echoinf "mvn fmt: $1"
+    mkdir ${mavenFmtDirName}${myPid}
+
+    echoinf "mvn validate: $1"
 
     cd $1
-    mvn fmt:format &> /dev/null
+
+    mvn validate &> ${mavenFmtDirErrors}${myPid}
 
     if [ $? -ne 0 ]; then
-        echoerr "> mvn fmt:format"
-        echoerr "did not work in ${1}"
-        mvnFmtError="Gah"
+        echoerr "[ "${myPid}" ] $ mvn validate $1"
+    else
+        rm ${mavenFmtDirErrors}${myPid}
     fi
 
-    rm -d ${mavenFmtDirName}$sysparams[pid]
+    rm -d ${mavenFmtDirName}${myPid}
 }
 
 function getFirstJiraCommit() {

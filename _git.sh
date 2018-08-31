@@ -3,47 +3,68 @@
 alias cb="/usr/bin/git rev-parse --abbrev-ref HEAD"
 alias cc="/usr/bin/git rev-parse HEAD"
 
-TIMELY_FETCH=1
-# in minutes
-
-COMMIT_PREPEND_TAG="-:"
-
 # A git wrapper just so you can pass cb as current branch to any command
 # To get the auto completion scripts shamelessly steal them from the hub github using... TODO
 
 unalias git
-whichGit=$(which git)
 
 function gitWrap() {
 
-    setup() {
+    # # # # # # # # # # # # # # # # # # # # #
+    # "Private" functions
+    #
+    function gitWrapSetup() {
 
         if [ -z ${whichGit} ]; then
-            whichGit=$(which git)
+            unalias git
+
+            # if hub is installed use hub otherwise use git
+            which hub > /dev/null
+            if [ $? -eq 0 ]; then
+                whichGit=$(which hub)
+            else
+                whichGit=$(which git)
+            fi
+
+            alias git=gitWrap
         fi
 
         GIT_HOME=$(${whichGit} rev-parse --show-toplevel)
     }
 
-	if [[ ${@: -1} == "cb" ]]; then
+	function gitWrapCleanUp() {
+        unset ARGS
+        unset length
+        unset GIT_HOME
+        unset whichGit
+    }
+
+    function currBranchCheck() {
+        # if the last argument is cb then transform it into the current branch
+	    if [[ ${@: -1} == "cb" ]]; then
 		length=$(($# - 1))
 
 		currBranch=$(cb)
 
 		ARGS=(${@:1:$length} $currBranch)
-    else
-        ARGS=($@)
-    fi
+        else
+            ARGS=($@)
+        fi
 
+    }
+
+    # --------------------------------------
+
+    currBranchCheck $@
+    gitWrapSetup
+
+    # # # # # # # # # # # # # # # # # # # # #
+    # -- PreHooks
+    #
     if typeset -f pre$1Hook > /dev/null; then
 
-        setup
-
         pre$1Hook ${ARGS[@]}
-
-        if [ $? -ne 0 ]; then
-            return $(( $? == 2 ))
-        fi
+        test $? -ne 0 && gitWrapCleanUp && return $(( $? == 2 ))
 
     fi
 
@@ -51,28 +72,25 @@ function gitWrap() {
         checkFetchGuard
     fi
 
-    which hub > /dev/null
-    if [ $? -eq 0 ]; then
-	    hub ${ARGS[@]}
-	else
-		${whichGit} ${ARGS[@]}
-	fi
+    # --------------------------------------
 
+	${whichGit} ${ARGS[@]}
+
+    # # # # # # # # # # # # # # # # # # # # #
+    # -- PostHooks
+    #
     if typeset -f post$1Hook > /dev/null; then
 
         post$1Hook ${ARGS[@]}
-
-        if [ $? -ne 0 ]; then
-            return $(( $? != 2 ))
-        fi
+        test $? -ne 0 && gitWrapCleanUp && return $(( $? == 2 ))
 
     fi
 
-	# remove all set variables
-	unset ARGS
-	unset length
-    unset GIT_HOME
+    # --------------------------------------
 
+	# remove all set variables
+    gitWrapCleanUp
+    unset -f gitWrapCleanUp
 }
 
 alias git=gitWrap
@@ -108,6 +126,8 @@ function cleanupGetFirstJiraCommit() {
     unset FTag
     unset CTag
     unset firstJiraCommit
+    unset -f currBranchCheck
+    unset -f gitWrapSetup
 
 }
 

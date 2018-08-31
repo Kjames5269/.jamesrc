@@ -55,7 +55,7 @@ function getGitURL() {
         lGIT_BRANCH="tree/${gitURLArgs[3]}"
     fi
 
-    lGIT_URL=$(${whichGit} config --get "remote.${gitURLArgs[2]}.url")
+    lGIT_URL="$(${whichGit} config --get "remote.${gitURLArgs[2]}.url")/"
     # If the remote is not found
     if [[ ${lGIT_URL} == "" ]]; then
         return 1
@@ -64,7 +64,7 @@ function getGitURL() {
     if [[ ${lGIT_URL} =~ ^git@github.com:.*$ ]]; then
         lGIT_URL="https://github.com/$(echo $lGIT_URL | cut -f2 -d ':' | rev | cut -f2- -d '.' | rev)/"
     elif [[ ${lGIT_URL} =~ ^https.*@ ]]; then
-        lGIT_URL=$(echo lGIT_URL | cut -f1-3 -d '/')
+        lGIT_URL="$(echo lGIT_URL | cut -f1-3 -d '/')/"
         unset lGIT_BRANCH
     fi
     lGIT_URL=${lGIT_URL}${lGIT_BRANCH}

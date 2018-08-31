@@ -1,5 +1,8 @@
 #!/usr/bin/env zsh
 
+TIMELY_FETCH=1
+# in minutes
+
 function prefetchHook() {
     updateFetchDate
 

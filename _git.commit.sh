@@ -1,5 +1,7 @@
 #!/usr/bin/env zsh
 
+COMMIT_PREPEND_TAG="-:"
+
 function precommitHook() {
     if [[ $2 != "$COMMIT_PREPEND_TAG" ]]; then
         return 0

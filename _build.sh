@@ -5,7 +5,7 @@ build () {
         if [ -f ${WORKSPACE}${1}/${CONFIG} ]; then
         	building=$(grep "building=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
 	        buildingNo=$(($building-1))
-	        sed -i '' 's/building=./building='${building}'/' ${WORKSPACE}../${CONFIG}
+	        sed -i '' 's/building=./building='${buildingNo}'/' ${WORKSPACE}../${CONFIG}
         fi
         unset building
         unset buildingNo
@@ -262,7 +262,7 @@ build () {
 
 		if [ ! -z ${slaveBuild} ]; then
 			unset slaveBuild
-			echoinf "Setting up background build..."
+			echoinf "Setting up background build from ${WORKSPACE}../${masterName}/ to ${WORKSPACE}"
 			rsync -auz --delete "${WORKSPACE}../${masterName}/" "${WORKSPACE}"
 	    fi
 

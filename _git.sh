@@ -39,7 +39,6 @@ function gitWrap() {
 
         setup
 
-        echo $1 has a pre-hook
         pre$1Hook ${ARGS[@]}
 
         if [ $? -ne 0 ]; then
@@ -61,7 +60,6 @@ function gitWrap() {
 
     if typeset -f post$1Hook > /dev/null; then
 
-        echo $1 has a post-hook
         post$1Hook ${ARGS[@]}
 
         if [ $? -ne 0 ]; then

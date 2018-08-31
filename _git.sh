@@ -16,14 +16,14 @@ whichGit=$(which git)
 
 function gitWrap() {
 
-    if [ -z ${whichGit} ]; then
-        whichGit=$(which git)
-    fi
+    setup() {
 
-    GIT_HOME=$(${whichGit} rev-parse --show-toplevel)
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
+        if [ -z ${whichGit} ]; then
+            whichGit=$(which git)
+        fi
+
+        GIT_HOME=$(${whichGit} rev-parse --show-toplevel)
+    }
 
 	if [[ ${@: -1} == "cb" ]]; then
 		length=$(($# - 1))
@@ -35,188 +35,22 @@ function gitWrap() {
         ARGS=($@)
     fi
 
+    if typeset -f pre$1Hook > /dev/null; then
 
-    if [[ $1 == "push" ]]; then
-        # Called to set lGIT_URL for "request"
-        getGitURL ${ARGS[@]}
+        setup
 
-    elif [[ $1 == "pub" ]]; then
-        getGitURL ${ARGS[@]}
-        ARGS[1]="push"
-        openOnSuccess=1
-
-	elif [[ $1 == "add" ]]; then
-
-        if [ -f "${GIT_HOME}/pom.xml" ]; then
-
-            if [ -e $2 ]; then
-                # This isn't perfect but it should be "good enough"
-                listOfChanged=($(${whichGit} ls-files -m  | grep /src/ | grep $2 | awk -F"/src/" '{print $1}' | uniq))
-            elif [ $# -eq 2 ]; then
-                #listOfChanged=($(${whichGit} status --short | grep /src/ | awk -F"/src/" '{print $1}' | cut -c4- | uniq))
-                listOfChanged=($(${whichGit} ls-files -m | grep /src/ | awk -F"/src/" '{print $1}' | uniq))
-            else
-                echoerr "This is not yet implemented. Add one file at a time"
-                return $?
-            fi
-
-            mavenFmtDirName="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING/"
-            mavenFmtDirErrors="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING_ERRORS/"
-
-            if [ -d ${mavenFmtDirErrors} ]; then
-                rm -rf ${mavenFmtDirErrors}
-            fi
-
-            if [ ${#listOfChanged[@]} -gt 0 ]; then
-
-                mkdir ${mavenFmtDirName}
-                mkdir ${mavenFmtDirErrors}
-
-                for i in ${listOfChanged[@]}; do
-                    ( mvnFmt ${GIT_HOME}/${i} & )
-                done
-
-                # R A C E  C O N D I T I O N S
-                # This is unfortunately done because I want quiet terminals
-                # that are not cluttered with PID's of background processes
-                # This however means that there is no way to wait for the child
-                # since the child is technically done... So this was the alternative
-                sleep 1
-
-                while [ $(/bin/ls ${mavenFmtDirName} | wc -l) -ne 0 ]; do
-                    sleep .25
-                done
-
-                rm -d ${mavenFmtDirName}
-
-                if [ $(/bin/ls ${mavenFmtDirErrors} | wc -l) -ne 0 ]; then
-                    echoerr "One or more formatting errors occurred. Nothing was added"
-                    echoerr "Errors can be found here: ${mavenFmtDirErrors}"
-                    return $?
-                fi
-
-                rm -d ${mavenFmtDirErrors}
-            fi
-
-        fi
-
-		ARGS=(${@})
-
-    elif [[ $1 == "commit" ]] && [[ $2 == "$COMMIT_PREPEND_TAG" ]]; then
-
-        length=$(($# - 1))
-
-        currBranch=$(cb | cut -f1,2 -d '-' )
-
-        # git (1)commit -: commit message starts at 3
-        msg=$(echo ${@:3:$#})
+        echo $1 has a pre-hook
+        pre$1Hook ${ARGS[@]}
 
         if [ $? -ne 0 ]; then
-            return 1
+            return $(( $? == 2 ))
         fi
 
-        firstWord=$(echo ${msg} | cut -f1 -d ' ')
+    fi
 
-        if [[ "$firstWord" != "$currBranch" ]]; then
-            ARGS=("${1}" "-m" "${currBranch} ${msg}")
-        else
-            ARGS=("${1}" "-m" "\"${msg}\"")
-        fi
-
-    elif [[ $1 == "fetch" ]]; then
-        updateFetchDate
-        ARGS=(${@})
-
-    elif [[ $1 == "squash" ]]; then
-
+    if typeset -f checkFetchGuard > /dev/null; then
         checkFetchGuard
-
-        getFirstJiraCommit
-
-        ${whichGit} reset --soft "${firstJiraCommit}"
-
-        if [ $# -eq 3 ] && [[ $2 == "-m" ]]; then
-            FCommit="$3"
-        fi
-
-        ${whichGit} commit -m "$FCommit"
-
-        return $?
-
-    elif [ $# -eq 3 ] && [[ $1 == "rebase" ]]; then
-        ARGS=$(${1} "${2}/${3}")
-
-    elif [ $# -eq 2 ] && [[ $1 == "checkout" ]] && [[ $2 =~ ^:.* ]]; then
-        ogBranch=$(cb)
-
-        if [[ $2 =~ ^:$ ]]; then
-            neighborBranch=$(${whichGit} branch | grep $(cb | cut -f1,2 -d '-') | grep -v \*)
-            if [[ ${neighborBranch} == "" ]]; then
-                echoerr "git $@ has no neighbor branch"
-                return $?
-            elif [ $(echo ${neighborBranch} | wc -w) -ne 1 ]; then
-                echoerr "git $@ has too many neighbor branches"
-                return $?
-            fi
-            ARGS=($1 $(echo ${neighborBranch} | cut -c3-))
-        elif [[ $2 =~ ^:[^-].*$ ]]; then
-            baseBranch=$(${whichGit} branch | grep \* | cut -c3- | cut -f1,2 -d '-')
-            extension=$(echo $2 | cut -c2-)
-            neighborBranch=$(${whichGit} branch | grep ${baseBranch}-${extension})
-            if [ $? -ne 0 ]; then
-                neighborBaseBranch=$(${whichGit} branch | grep "^ *"${extension}"$" | cut -c3-)
-                if [[ ${neighborBaseBranch} == "" ]]; then
-                    echoerr "git $@ did not find a base branch to create a neighbor from"
-                    return $?
-                fi
-
-                getFirstJiraCommit
-
-                ${whichGit} checkout -b "${baseBranch}-${extension}"
-                if [ $? -ne 0 ]; then
-                    return $?
-                fi
-                ARGS=("rebase" "--onto" "${neighborBaseBranch}" "${firstJiraCommit}")
-            else
-                ARGS=($1 ${neighborBranch})
-            fi
-        else
-            baseBranch=$(${whichGit} branch | grep \* | cut -c3-)
-            count=$(echo ${baseBranch} | tr -cd '-' | wc -c)
-            if [ ${count} -le 1 ]; then
-                echoerr "git $@ requires you to be on a nonBase branch"
-                return $?
-            fi
-
-            getFirstJiraCommit
-
-            neighborBranch=$(echo ${baseBranch} | cut -f1-${count// /} -d '-')
-            ${whichGit} checkout -b ${neighborBranch}
-            if [ $? -ne 0 ]; then
-                return $?
-            fi
-
-            ARGS=("rebase" "--onto" "master" "${firstJiraCommit}")
-        fi
-
-    elif [[ ${ARGS[1]} == "request" ]]; then
-        if [ $# -eq 1 ] && ! [ -z ${lGIT_URL} ]; then
-            open ${lGIT_URL}
-        else
-            unset lGIT_URL
-            getGitURL ${ARGS[@]}
-            if [ -z ${lGIT_URL} ]; then
-                echoerr "git ${ARGS[@]} was not able to obtain the current remote, does the remote exist?"
-                return $?
-            fi
-            open ${lGIT_URL}
-        fi
-        return 0
-	else
-		ARGS=(${@})
-	fi
-
-    checkFetchGuard
+    fi
 
     which hub > /dev/null
     if [ $? -eq 0 ]; then
@@ -225,91 +59,25 @@ function gitWrap() {
 		${whichGit} ${ARGS[@]}
 	fi
 
-    if [ $? -eq 0 ] && [ ! -z ${openOnSuccess} ]; then
-        unset openOnSuccess
-        open ${lGIT_URL}
+    if typeset -f post$1Hook > /dev/null; then
+
+        echo $1 has a post-hook
+        post$1Hook ${ARGS[@]}
+
+        if [ $? -ne 0 ]; then
+            return $(( $? != 2 ))
+        fi
+
     fi
 
 	# remove all set variables
 	unset ARGS
-	unset mavenFmtDirName
-	unset mavenFmtDirError
-	unset firstJiraCommit
-    unset listOfChanged
+	unset length
     unset GIT_HOME
-    unset length
-    unset currBranch
-    unset msg
-    unset FCommit
-    unset FTag
-    unset oldIFS
 
 }
 
-function getGitURL() {
-
-    if [ $# -lt 2 ]; then
-        tracking=$(${whichGit} for-each-ref --format='%(upstream:short)' $(${whichGit} symbolic-ref -q HEAD)) 2> /dev/null
-
-        if [ $? -ne 0 ]; then
-            return $?
-        fi
-
-        gitURLArgs[2]=$(echo ${tracking} | cut -f1 -d '/')
-        gitURLArgs[3]=$(echo ${tracking} | cut -f2 -d '/')
-        unset tracking
-
-    else
-        while [[ $2 =~ ^-.+ ]]; do
-            shift
-        done
-        gitURLArgs=($@)
-    fi
-
-    if [[ $# -eq 3 ]]; then
-        lGIT_BRANCH="tree/${gitURLArgs[3]}"
-    fi
-
-    lGIT_URL=$(${whichGit} config --get "remote.${gitURLArgs[2]}.url")
-    # If the remote is not found
-    if [[ ${lGIT_URL} == "" ]]; then
-        return 1
-    fi
-    # If it is SSH
-    if [[ ${lGIT_URL} =~ ^git@github.com:.*$ ]]; then
-        lGIT_URL="https://github.com/$(echo $lGIT_URL | cut -f2 -d ':' | rev | cut -f2- -d '.' | rev)/"
-    elif [[ ${lGIT_URL} =~ ^https.*@ ]]; then
-        lGIT_URL=$(echo lGIT_URL | cut -f1-3 -d '/')
-        unset lGIT_BRANCH
-    fi
-    lGIT_URL=${lGIT_URL}${lGIT_BRANCH}
-    unset lGIT_BRANCH
-    unset gitURLArgs
-
-}
-function mvnFmt() {
-    if ! [ -d $1 ]; then
-        return 0
-    fi
-
-    myPid=${sysparams[pid]}
-
-    mkdir ${mavenFmtDirName}${myPid}
-
-    echoinf "mvn validate: $1"
-
-    cd $1
-
-    mvn validate &> ${mavenFmtDirErrors}${myPid}
-
-    if [ $? -ne 0 ]; then
-        echoerr "[ "${myPid}" ] $ mvn validate $1"
-    else
-        rm ${mavenFmtDirErrors}${myPid}
-    fi
-
-    rm -d ${mavenFmtDirName}${myPid}
-}
+alias git=gitWrap
 
 function getFirstJiraCommit() {
     oldIFS=$IFS
@@ -336,77 +104,13 @@ function getFirstJiraCommit() {
     IFS=$oldIFS
 }
 
-alias git=gitWrap
-
-function updateFetchDate() {
-        echo $(date +'%Y%m%d%H%M') > '.git/CD_LAST_FETCH'
-}
-
-function checkFetchGuard() {
-
-    if [ -f '.git/FETCH_GUARD' ]; then
-        if [[ $sysparams[pid] == $(head -1 '.git/FETCH_GUARD') ]]; then
-            # We are the process who owns the guard (or another process beat us here by a second...
-            return 0
-        fi
-        echoinf "Fetch is running with PID $(head -1 '.git/FETCH_GUARD'), waiting..."
-
-        echo "$$" >> '.git/FETCH_GUARD'
-        # sleep infinity pls
-        sleep 3600
-        wait
-    fi
+function cleanupGetFirstJiraCommit() {
+    unset oldIFS
+    unset FCommit
+    unset FTag
+    unset CTag
+    unset firstJiraCommit
 
 }
-function gitFetch() {
 
-        (echo $sysparams[pid] > '.git/FETCH_GUARD' ;${whichGit} fetch --all > '.git/lastFetch')
 
-        wait
-
-        killFetchGuard
-
-        if [[ $(grep -i ^Fetched .git/lastFetch) != "" ]]; then
-            tput sc && tput cuf 300 && echo -e "\033[01;35m!\033[0m" && tput rc
-        fi
-}
-
-function killFetchGuard() {
-#Renaming so a new processes doesn't get locked for some reason between wakeup and removal
-        mv '.git/FETCH_GUARD' '.git/FETCH_GUARD.lock'
-
-        # Wake up all people waiting on the fetch to finish
-        for i in $(tail -n +2 '.git/FETCH_GUARD.lock'); do
-            pkill -P ${i} sleep
-        done
-
-        rm '.git/FETCH_GUARD.lock'
-}
-function autoFetch() {
-    if [ -d .git ]; then
-        if [ -f '.git/CD_LAST_FETCH' ]; then
-            lastFetch=$(cat '.git/CD_LAST_FETCH')
-            currDate=$(date +'%Y%m%d%H%M')
-            if [[ $(($currDate - $lastFetch)) -lt $TIMELY_FETCH ]]; then
-                return 0
-            fi
-        fi
-
-        echo $(date +'%Y%m%d%H%M') > '.git/CD_LAST_FETCH'
-
-        ( gitFetch & ) 2>/dev/null
-
-    fi
-}
-
-function cdWrap() {
-
-    if [ -f $1 ]; then
-        cd $(echo $1 | rev | cut -f2- -d '/' | rev )
-    else
-        cd $1
-    fi
-    autoFetch
-}
-
-alias cd=cdWrap

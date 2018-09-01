@@ -29,7 +29,7 @@ function gitWrap() {
             alias git=gitWrap
         fi
 
-        GIT_HOME=$(${whichGit} rev-parse --show-toplevel)
+        GIT_HOME=$(${whichGit} rev-parse --show-toplevel) &> /dev/null
     }
 
 	function gitWrapCleanUp() {

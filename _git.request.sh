@@ -1,12 +1,12 @@
 #!/usr/bin/env zsh
 
 AUTO_SET_REMOTE=0
-ASSUME_ORIGIN=0
+ASSUME_ORIGIN=1
 
 function prepushHook() {
     getGitURL $@
 
-    if [ ${AUTO_SET_REMOTE} -eq 0 ] || [ ${ASSUME_ORIGIN} -eq 0 ] && [ ${#ARGS[@]} -ne 3 ]; then
+    if [ ${ASSUME_ORIGIN} -eq 0 ] && [ ${#ARGS[@]} -ne 3 ]; then
         return 0
     fi
 
@@ -15,17 +15,24 @@ function prepushHook() {
         return 0
     fi
 
+    if [ ${AUTO_SET_REMOTE} -eq 0 ]; then
+        setUpstream=""
+    else
+        setUpstream="--set-upstream"
+    fi
+
     if [ ${#ARGS[@]} -eq 1 ]; then
         ARGS[2]="origin"
         ARGS[3]=$(cb)
     fi
 
-    ARGS=(${ARGS[1]} "--set-upstream" ${ARGS[@]:1})
+    ARGS=(${ARGS[1]} ${setUpstream} ${ARGS[@]:1})
 
 }
 
 function postpushHook() {
     unset trackedBranch
+    unset setUpstream
 
 }
 

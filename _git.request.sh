@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
-AUTO_SET_REMOTE=1
-ASSUME_ORIGIN=1
+AUTO_SET_REMOTE=0
+ASSUME_ORIGIN=0
 
 function prepushHook() {
     getGitURL $@
@@ -31,13 +31,14 @@ function postpushHook() {
 
 function prepubHook() {
     ARGS[1]="push"
-    getGitURL $@
+    prepushHook ${ARGS[@]}
 }
 
 function postpubHook() {
     if [ $? -eq 0 ]; then
         open ${lGIT_URL}
     fi
+    postpushHook
 }
 
 function prerequestHook() {

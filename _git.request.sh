@@ -1,7 +1,31 @@
 #!/usr/bin/env zsh
 
+AUTO_SET_REMOTE=1
+ASSUME_ORIGIN=1
+
 function prepushHook() {
     getGitURL $@
+
+    if [ ${AUTO_SET_REMOTE} -eq 0 ] || [ ${ASSUME_ORIGIN} -eq 0 ] && [ ${#ARGS[@]} -ne 3 ]; then
+        return 0
+    fi
+
+    trackedBranch=$(${whichGit} for-each-ref --format='%(upstream:short)' $(${whichGit} symbolic-ref -q HEAD))
+    if [ ! -z ${trackedBranch} ]; then
+        return 0
+    fi
+
+    if [ ${#ARGS[@]} -eq 1 ]; then
+        ARGS[2]="origin"
+        ARGS[3]=$(cb)
+    fi
+
+    ARGS=(${ARGS[1]} "--set-upstream" ${ARGS[@]:1})
+
+}
+
+function postpushHook() {
+    unset trackedBranch
 
 }
 
@@ -15,6 +39,7 @@ function postpubHook() {
         open ${lGIT_URL}
     fi
 }
+
 function prerequestHook() {
     if [ $# -eq 1 ] && ! [ -z ${lGIT_URL} ]; then
         open ${lGIT_URL}

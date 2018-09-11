@@ -16,12 +16,12 @@ createFiles() {
 	fi
 
 	if [ ! -f ~/.jamesrc/.workspaceDefaultMaven ]; then
-          echo -n -e "Input default Maven commands\n > mvn -T 8 clean install "
-                read input
+        echo -n -e "Input default Maven commands\n > mvn -T 8 clean install "
+        read input
 
-                echo $input > ~/.jamesrc/.workspaceDefaultMaven
-                echoinf "creating ~/.jamesrc/.workspaceDefaultMaven with $input..."
-        fi
+        echo $input > ~/.jamesrc/.workspaceDefaultMaven
+        echoinf "creating ~/.jamesrc/.workspaceDefaultMaven with $input..."
+    fi
 }
 
 fileChecks() {

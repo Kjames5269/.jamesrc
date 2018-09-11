@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 OPENED_AT=$(pwd)
 
+PathToIntelliJ="/usr/local/bin/idea"
+
 #Aliases
-alias nt="open -a Terminal `pwd`"
 alias ll="ls -l"
 alias la="ls -la"
-alias diretide="echo '༼ つ ◕_◕ ༽つ' | pbcopy"
-alias shrug="echo '¯\_(ツ)_/¯' | pbcopy"
+# Mac exclusive
+if [[ $(uname -a | cut -f1 -d ' ') == "Darwin" ]]; then
+    alias diretide="echo '༼ つ ◕_◕ ༽つ' | pbcopy"
+    alias shrug="echo '¯\_(ツ)_/¯' | pbcopy"
+    alias nt="open -a Terminal `pwd`"
+fi
 alias cdhome="cd $OPENED_AT"
 alias mvnerr="cat ~/lastbuild.log"
 alias ip="ifconfig | grep 'inet ' | grep -Fv 127.0.0.1 | cut -f2 -d ' '"
@@ -25,12 +30,12 @@ ij () {
 	else
 		openDir=$(pwd)
 	fi
-	/usr/local/bin/idea $openDir
+	${PathToIntelliJ} ${openDir}
 }
 
 mvnhome() {
 
-	OLD_DIR=`pwd`
+	OLD_DIR=$(pwd)
 	
 	cd "$OPENED_AT"
 	MVNCMD=($(cat ~/.jamesrc/.workspaceDefaultMaven))

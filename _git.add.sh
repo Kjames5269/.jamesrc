@@ -48,7 +48,7 @@ function checkMvnValidate() {
         # since the child is technically done... So this was the alternative
         sleep 1
 
-        for i in $(alias | grep "ferr[0-9]*=" | cut -f1 -d '='); do
+        for i in $(alias | egrep "ferr[0-9]+=.*" | cut -f1 -d '='); do
             unalias ${i}
         done
 

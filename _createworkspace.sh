@@ -42,5 +42,7 @@ fileChecks() {
 	return 0
 }
 
-createFiles
-fileChecks
+setupWorkspace() {
+    createFiles
+    fileChecks
+}

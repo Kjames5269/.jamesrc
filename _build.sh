@@ -12,7 +12,21 @@ build () {
         unset buildMavenCmd
         unset buildMaven
         unset back
-
+        unset REDIRECTION
+        unset ERROR_REDIRECT
+        unset mvnToRun
+        unset fdir
+        unset nonZipDir
+        unset BRANCH
+        unset ON
+        unset OFF
+        unset CONFIG
+        unset LATEST
+        unset THREADS
+        unset LIB
+        unset MVNCMD
+        unset FROM_PATH
+        unset TO_PATH
 
         return $1
     }
@@ -22,17 +36,14 @@ build () {
 	fdir=$(pwd)
 
 	#function call
-	createFiles
+	setupWorkspace
+	if [ $? -eq 1 ]; then
+		return 1
+	fi
 
 	WORKSPACE=$(cat ~/.jamesrc/.workspaceLocationFile)
 
 	MVNCMD=($(cat ~/.jamesrc/.workspaceDefaultMaven))
-	
-	fileChecks
-	
-	if [ $? -eq 1 ]; then
-		return 1
-	fi
 
 	if [ $# -eq 0 ]; then
 		echoerr "Specify a valid project: build ddf"
@@ -46,7 +57,8 @@ build () {
 
 	RESET=$ON
 	LS=$OFF
-	VERBOSE=$OFF	
+	REDIRECTION="~/lastbuild.log"
+	ERROR_REDIRECT="/dev/stdout"
 	START=$OFF
 	BRANCH=""
 	LATEST=$OFF
@@ -59,57 +71,51 @@ build () {
 
 	while [[ $1 =~ ^-.*$ ]]; do
 		
-		# Remove Saved Data
-		if [[ $1 == "--reset" ]]; then
-			rm ~/.jamesrc/.workspaceLocationFile
-			rm ~/.jamesrc/.workspaceDefaultMaven
-			echoinf "Saved data reset"
+		case $1 in
+		    "--reset")
+			    rm ~/.jamesrc/.workspaceLocationFile
+			    rm ~/.jamesrc/.workspaceDefaultMaven
+			    echoinf "Saved data reset"
+			    return 0
+			    ;;
+            "--reset-maven")
+			    rm ~/.jamesrc/.workspaceDefaultMaven
+			    echoinf "Maven Defaults reset"
+			    return 0
+			    ;;
+            "--reset-path")
+                rm ~/.jamesrc/.workspaceLocationFile
+                echoinf "Directory path defaults reset"
+			    return 0
+			    ;;
+            "-ls")
+			    LS=$ON
+                shift
+                continue
+                ;;
+			# Help commands are useful
+		    "--help")
+			echo "This script is intented to build any project with the ddf alliance setup with the current branch appended"
+			echo -e "Mvn Defaults: $(cat ~/.jamesrc/.workspaceDefaultMaven)\nDirectory Path: $(cat ~/.jamesrc/.workspaceLocationFile)"
+			echo -e "Supported args:\n\t-s to skip the build and unzip a new distro\n\t--reset to delete saved data \n\t\t--reset-maven\n\t\t--reset-path)"
+			echo -e "\t-m override using default maven commands (Can't override clean install)\n\t-v verbose to print maven"
+			echo -e "\t-n pipe maven output to /dev/null\n\t-ls to show directories in your saved directory\n\t-[number] change the thread count"
+			echo -e "\t-b to boot after build (only works for ddf alliance)"
+			echo -e "\t--branch=branchName sets the branch to the given branch instead of the current (stashes changes)"
+			echo -e "\t-l runs git fetch --all; git pull -r. Pray for no merge conflicts"
+			echo -e "\nAfter the build name you can add additional maven arguments"
+			echo -e " > build -bm -v ddf [maven commands]"
+			echo -e "\nIf there are any comments or concerns send them here: kyle.grady@connexta.com"
 			return 0
-		fi
-		
-		if [[ $1 == "--reset-maven" ]]; then
-			rm ~/.jamesrc/.workspaceDefaultMaven
-			echoinf "Maven Defaults reset"
-			return 0
-		fi
-		
-		if [[ $1 == "--reset-path" ]]; then
-			rm ~/.jamesrc/.workspaceLocationFile
-			echoinf "Directory path defaults reset"
-			return 0
-		fi
 
-		if [[ $1 == "-ls" ]]; then
-			LS=$ON
+		esac
 
-			shift
-			continue
-		fi
-	
 		if [[ $1 =~ ^--branch=.+$ ]]; then
 			BRANCH="$(echo $1 | cut -f2- -d '=')"
 
 			shift
 			continue
 		fi
-	
-		# Help commands are useful
-		if [[ $1 == "--help" ]]; then
-			echo "This script is intented to build any project with the ddf alliance setup with the current branch appended"
-			echo -e "Mvn Defaults: $(cat ~/.jamesrc/.workspaceDefaultMaven)\nDirectory Path: $(cat ~/.jamesrc/.workspaceLocationFile)"
-			echo -e "Supported args:\n\t-s to skip build if one exist\n\t--reset to delete saved data \n\t\t--reset-maven\n\t\t--reset-path)"
-			echo -e "\t-m override using default maven commands (Can't override clean install)\n\t"
-			echo -e "\t-v verbose to print maven\n\t-ls to show directories in your saved directory\n\t-[number] change the thread count"
-			echo -e "\t-b to boot after build (only works for ddf alliance)"
-			echo -e "\t--branch=branchName sets the branch to the given branch instead of the current (stashes changes)"
-			echo -e "\t-l runs git fetch --all; git pull -r. Pray for no merge conflicts"
-			echo -e "\nAfter the build name you can add additional maven arguements"
-			echo -e " > build -f -m -p /projects/src/ ddf [maven commands]"
-			echo -e "\nIf there are any comments or concerns send them here: kyle.grady@connexta.com" 
-			return 0
-		fi
-
-		FOUND=0	
 
 		arglen=$(echo ${#1})
 		
@@ -118,52 +124,37 @@ build () {
 			ARGS=$(echo "${1:$i:1}")
 			len=$(( $arglen - $i ))
 
-			# Force a maven build (Even if there is one snapshotted)	
-			if [[ $ARGS == "s" ]]; then
-				RESET=$OFF
-				FOUND=1
-			fi
-	
-				
-			if [[ $ARGS == "b" ]]; then
-				START=$ON
-				FOUND=1
-			fi
-	
-			# Unset mvncmd variable
-			if [[ $ARGS == "m" ]]; then
-				MVNCMD=("")
-				FOUND=1
-			fi
-	
-			if [[ $ARGS == "v" ]]; then
-				FOUND=1
-				VERBOSE=$ON
-			fi
-
-			if [[ $ARGS == "l" ]]; then
-				FOUND=1
-				LATEST=$ON
-			fi
-
-			if [[ $ARGS == "n" ]]; then
-			    FOUND=1
-			    NULLS=$ON
-			fi
-
-			if [[ $(echo "${1:$i:$len}") =~ ^[0-9]*$ ]]; then
-				FOUND=1
-				THREADS=$(echo "${1:$i:$len}")
-				
-				break
-			fi
-	
-	
-			if [ $FOUND -eq 0 ]; then
-				echoerr "$1 is not a valid argument"
-				return 1
-			fi
-
+			# Force a maven build (Even if there is one snapshotted)
+			case $ARGS in
+			    "s")
+				    RESET=$OFF
+                    ;;
+                "b")
+				    START=$ON
+				    ;;
+                "m")
+                    MVNCMD=("")
+                    ;;
+                "v")
+                    REDIRECTION="/dev/stdout"
+                    # Maven gives all the errors this would
+                    ERROR_REDIRECT="/dev/null"
+                    ;;
+                "l")
+                    LATEST=$ON
+                    ;;
+                "n")
+                    REDIRECTION="/dev/null"
+                    NULLS=$ON
+                    ;;
+                *)
+                    if [[ $(echo "${1:$i:$len}") =~ ^[0-9]*$ ]]; then
+                        THREADS=$(echo "${1:$i:$len}")
+                    else
+                    	echoerr "$ARGS is not a valid argument"
+                        return 1
+                    fi
+            esac
 		
 		#End of For loop for parsing characters
 		done
@@ -268,19 +259,14 @@ build () {
 
 		echoinf "Maven Building..."
 
-		# IF verbose is on then output to console not log
-		if [ $VERBOSE -eq $ON ]; then
-			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2}
-		elif [ $NULLS -eq $OFF ]; then
-			mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} &> ~/lastbuild.log
-	    else
-	    	mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} &> /dev/null
-		fi
+        mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} > ${REDIRECTION}
 
 		if [ $? -ne 0 ]; then
-			if [ $VERBOSE -eq $OFF ] && [ $NULLS -eq $OFF ]; then
-				echoerr "Build failed see log file at ~/lastbuild.log for more details"
-				tail -15 ~/lastbuild.log
+		    if [ $NULLS -eq $OFF ]; then
+		        echoerr "Build failed see log file at ~/lastbuild.log for more details" &> ${ERROR_REDIRECT}
+                tail -15 ~/lastbuild.log > ${ERROR_REDIRECT}
+		    else
+		        echoerr "Build Failed" &> ${ERROR_REDIRECT}
 		    fi
 
 			#echoinf "Deleting node* directories"
@@ -289,9 +275,7 @@ build () {
 			return $(andClean 1)
 		fi
 
-        if [ $VERBOSE -eq $OFF ]; then
-		    echo "\033[0;32mBUILD SUCCESS\033[0m"
-		fi
+		echo "\033[0;32mBUILD SUCCESS\033[0m" > ${ERROR_REDIRECT}
 
 	fi	
 	        

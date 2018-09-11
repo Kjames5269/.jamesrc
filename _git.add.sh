@@ -50,15 +50,38 @@ function checkMvnValidate() {
         # since the child is technically done... So this was the alternative
         sleep 1
 
+        for i in $(alias | grep "ferr[0-9]*=" | cut -f1 -d '='); do
+            unalias ${i}
+        done
+
+        counter=0
+        counter2=16
+
         while [ $(/bin/ls ${mavenFmtDirName} | wc -l) -ne 0 ]; do
             sleep .25
+            counter=$(($counter+1))
+            if [ ${counter} -eq ${counter2} ]; then
+                counter=0
+                if [ ${counter2} -gt 1 ]; then
+                    counter2=$((${counter2}-1))
+                fi
+                echo -n ".  "
+            fi
         done
+
+        echo ""
+        unset counter
 
         rm -d ${mavenFmtDirName}
 
         if [ $(/bin/ls ${mavenFmtDirErrors} | wc -l) -ne 0 ]; then
             echoerr "One or more formatting errors occurred. Nothing was added"
             echoerr "Errors can be found here: ${mavenFmtDirErrors}"
+            echoerr "Or running: $ ferr{Number}"
+
+            for i in $(/bin/ls ${mavenFmtDirErrors}); do
+                alias ferr${i}="cat ${mavenFmtDirErrors}/${i}"
+            done
             return $?
         fi
 
@@ -78,7 +101,9 @@ function mvnFmt() {
     echoinf "mvn validate: $1"
 
     cd $1
-
+    
+    # Format first to catch small errors then go in for the validator
+    mvn fmt:format &> /dev/null
     mvn validate &> ${mavenFmtDirErrors}${myPid}
 
     if [ $? -ne 0 ]; then

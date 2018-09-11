@@ -8,29 +8,30 @@ alias cc="/usr/bin/git rev-parse HEAD"
 
 unalias git
 
+function gitWrapSetup() {
+
+    if [ -z ${whichGit} ]; then
+        unalias git
+
+        # if hub is installed use hub otherwise use git
+        which hub > /dev/null
+        if [ $? -eq 0 ]; then
+            whichGit=$(which hub)
+        else
+            whichGit=$(which git)
+        fi
+
+        alias git=gitWrap
+    fi
+
+    GIT_HOME=$(${whichGit} rev-parse --show-toplevel) &> /dev/null
+}
+
 function gitWrap() {
 
     # # # # # # # # # # # # # # # # # # # # #
     # "Private" functions
     #
-    function gitWrapSetup() {
-
-        if [ -z ${whichGit} ]; then
-            unalias git
-
-            # if hub is installed use hub otherwise use git
-            which hub > /dev/null
-            if [ $? -eq 0 ]; then
-                whichGit=$(which hub)
-            else
-                whichGit=$(which git)
-            fi
-
-            alias git=gitWrap
-        fi
-
-        GIT_HOME=$(${whichGit} rev-parse --show-toplevel) &> /dev/null
-    }
 
 	function gitWrapCleanUp() {
         unset ARGS
@@ -127,8 +128,9 @@ function cleanupGetFirstJiraCommit() {
     unset CTag
     unset firstJiraCommit
     unset -f currBranchCheck
-    unset -f gitWrapSetup
-
 }
 
+function createLogEntry() {
+    echo "${1} -- $(cb) -- $(${whichGit} log --format="%H -- %s" | head -1) ${2}" >> ${GIT_HOME}/.git/personalCommit.log
+}
 

@@ -28,9 +28,6 @@ function prepushHook() {
 
     ARGS=(${ARGS[1]} ${setUpstream} ${ARGS[@]:1})
 
-}
-
-function postpushHook() {
     unset trackedBranch
     unset setUpstream
 
@@ -45,7 +42,6 @@ function postpubHook() {
     if [ $? -eq 0 ]; then
         open ${lGIT_URL}
     fi
-    postpushHook
 }
 
 function prerequestHook() {

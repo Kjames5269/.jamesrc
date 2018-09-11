@@ -25,10 +25,12 @@ function precommitHook() {
     else
         ARGS=("${1}" "-m" "\"${msg}\"")
     fi
-}
 
-function postcommitHook() {
     unset currBranch
     unset msg
     unset firstWord
+}
+
+function postcommitHook() {
+    createLogEntry "commit"
 }

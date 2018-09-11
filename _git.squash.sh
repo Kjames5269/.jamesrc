@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
 function presquashHook() {
-    if typeset -f post$1Hook > /dev/null; then
+    if typeset -f checkFetchGuard > /dev/null; then
         checkFetchGuard
     fi
 
@@ -13,10 +13,14 @@ function presquashHook() {
         FCommit="$3"
     fi
 
-    ${whichGit} commit -m "$FCommit"
-
     ARGS=("commit" "-m" "$FCommit")
 
+    cleanupGetFirstJiraCommit
+
+}
+
+function postsquashHook() {
+    createLogEntry "squash"
 }
 
 function prerebaseHook() {
@@ -26,8 +30,4 @@ function prerebaseHook() {
 
     ARGS=$(${1} "${2}/${3}")
 
-}
-
-function postsquashHook() {
-    cleanupGetFirstJiraCommit
 }

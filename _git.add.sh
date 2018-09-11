@@ -1,19 +1,17 @@
 #!/usr/bin/env zsh
 
 function preaddHook() {
-     if ! [ -f "${GIT_HOME}/pom.xml" ]; then
+     if ! [ -f "${GIT_HOME}/pom.xml" ] || [ $# -eq 1 ]; then
         return 0
      fi
 
      checkMvnValidate $@
+
+     unset listOfChanged
+     unset mavenFmtDirName
+     unset mavenFmtDirErrors
 }
 
-function postaddHook() {
-    unset listOfChanged
-    unset mavenFmtDirName
-    unset mavenFmtDirErrors
-
-}
 function checkMvnValidate() {
 
     if [ -e $2 ]; then

@@ -2,8 +2,8 @@
 build () {
 
     andClean() {
-        if [ -f ${WORKSPACE}${1}/${CONFIG} ]; then
-        	building=$(grep "building=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
+        if [ -f ${WORKSPACE}../${CONFIG} ]; then
+        	building=$(grep "building=" ${WORKSPACE}../${CONFIG} | cut -f2 -d '=')
 	        buildingNo=$(($building-1))
 	        sed -i '' 's/building=./building='${buildingNo}'/' ${WORKSPACE}../${CONFIG}
         fi

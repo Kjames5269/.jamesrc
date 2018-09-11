@@ -9,19 +9,19 @@ function prefetchHook() {
 }
 
 function updateFetchDate() {
-        echo $(date +'%Y%m%d%H%M') > '.git/CD_LAST_FETCH'
+        echo $(date +'%Y%m%d%H%M') > ${GIT_HOME}/.git/CD_LAST_FETCH
 }
 
 function checkFetchGuard() {
 
-    if [ -f '.git/FETCH_GUARD' ]; then
-        if [[ $sysparams[pid] == $(head -1 '.git/FETCH_GUARD') ]]; then
+    if [ -f ${GIT_HOME}/.git/FETCH_GUARD ]; then
+        if [[ $sysparams[pid] == $(head -1 ${GIT_HOME}/.git/FETCH_GUARD) ]]; then
             # We are the process who owns the guard (or another process beat us here by a second...
             return 0
         fi
-        echoinf "Fetch is running with PID $(head -1 '.git/FETCH_GUARD'), waiting..."
+        echoinf "Fetch is running with PID $(head -1 ${GIT_HOME}/.git/FETCH_GUARD), waiting..."
 
-        echo "$$" >> '.git/FETCH_GUARD'
+        echo "$$" >> ${GIT_HOME}/.git/FETCH_GUARD
         # sleep infinity pls
         sleep 3600
         wait
@@ -30,51 +30,64 @@ function checkFetchGuard() {
 }
 function gitFetch() {
 
-        (echo $sysparams[pid] > '.git/FETCH_GUARD' ;${whichGit} fetch --all > '.git/lastFetch')
+        (echo $sysparams[pid] > ${GIT_HOME}/.git/FETCH_GUARD ;${whichGit} fetch --all > ${GIT_HOME}/.git/lastFetch)
 
         wait
 
         killFetchGuard
 
-        if [[ $(grep -i ^Fetched .git/lastFetch) != "" ]]; then
+        if [[ $(grep -i ^Fetched ${GIT_HOME}/.git/lastFetch) != "" ]]; then
             tput sc && tput cuf 300 && echo -e "\033[01;35m!\033[0m" && tput rc
         fi
+
 }
 
 function killFetchGuard() {
 #Renaming so a new processes doesn't get locked for some reason between wakeup and removal
-        mv '.git/FETCH_GUARD' '.git/FETCH_GUARD.lock'
+        mv ${GIT_HOME}/.git/FETCH_GUARD ${GIT_HOME}/.git/FETCH_GUARD.lock
+
+        # There's no one waiting on us so nobody needs these variables.
+        if [ $(wc -l ${GIT_HOME}/.git/FETCH_GUARD.lock) -eq 1 ]; then
+            unset GIT_HOME
+            unset whichGit
+        fi
 
         # Wake up all people waiting on the fetch to finish
-        for i in $(tail -n +2 '.git/FETCH_GUARD.lock'); do
+        for i in $(tail -n +2 ${GIT_HOME}/.git/FETCH_GUARD.lock); do
             pkill -P ${i} sleep
         done
 
-        rm '.git/FETCH_GUARD.lock'
+        rm ${GIT_HOME}/.git/FETCH_GUARD.lock
 }
 function autoFetch() {
-    if [ -d .git ]; then
-        if [ -f '.git/CD_LAST_FETCH' ]; then
-            lastFetch=$(cat '.git/CD_LAST_FETCH')
+
+    gitWrapSetup
+
+    if [ -d "${GIT_HOME}" ]; then
+        if [ -f "${GIT_HOME}/.git/CD_LAST_FETCH" ]; then
+            lastFetch=$(cat "${GIT_HOME}/.git/CD_LAST_FETCH")
             currDate=$(date +'%Y%m%d%H%M')
             if [[ $(($currDate - $lastFetch)) -lt $TIMELY_FETCH ]]; then
                 return 0
             fi
         fi
 
-        echo $(date +'%Y%m%d%H%M') > '.git/CD_LAST_FETCH'
+        echo $(date +'%Y%m%d%H%M') > ${GIT_HOME}/.git/CD_LAST_FETCH
 
         ( gitFetch & ) 2>/dev/null
 
         unset lastFetch
         unset currDate
+    else
+        unset whichGit
+        unset GIT_HOME
     fi
 }
 
 function cdWrap() {
 
-    if [ -f $1 ]; then
-        cd $(echo $1 | rev | cut -f2- -d '/' | rev )
+    if [ -f $1 ] && [[ $(echo $1 | grep "/src/" != "") ]]; then
+        cd $(echo $1 | awk -F"/src/" '{print $1}')
     else
         cd $1
     fi

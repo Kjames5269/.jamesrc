@@ -86,7 +86,7 @@ function autoFetch() {
 
 function cdWrap() {
 
-    if [ -f $1 ] && [[ $(echo $1 | grep "/src/" != "") ]]; then
+    if [ $# -ne 0 ] && [ -f $1 ] && [[ $(echo $1 | grep "/src/" != "") ]]; then
         cd $(echo $1 | awk -F"/src/" '{print $1}')
     else
         cd $1

@@ -57,7 +57,7 @@ build () {
 
 	RESET=$ON
 	LS=$OFF
-	REDIRECTION="~/lastbuild.log"
+	REDIRECTION="${HOME}/lastbuild.log"
 	ERROR_REDIRECT="/dev/stdout"
 	START=$OFF
 	BRANCH=""
@@ -187,7 +187,7 @@ build () {
 	    elif [ ${building} -eq 0 ]; then
 	    	buildMaven=$(ls -d ${WORKSPACE}${1}/*/ | grep -v "${masterName}$" | head -1 | rev | cut -f2 -d '/' | rev)
 	        WORKSPACE="${WORKSPACE}${1}/${buildMaven}/"
-	        slaveBuild=1
+	        heroBuild=1
 	    else
 	        echoerr "Too many builds for now... (who needs to build 3 things anyway??)"
 	        return $?
@@ -251,22 +251,16 @@ build () {
 		
 		cd ${WORKSPACE}
 
-		if [ ! -z ${slaveBuild} ]; then
-			unset slaveBuild
-			echoinf "Setting up background build from ${WORKSPACE}../${masterName}/ to ${WORKSPACE}"
-			rsync -auz --delete "${WORKSPACE}../${masterName}/" "${WORKSPACE}"
-	    fi
-
 		echoinf "Maven Building..."
 
-        mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} > ${REDIRECTION}
+        mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} > "${REDIRECTION}"
 
 		if [ $? -ne 0 ]; then
 		    if [ $NULLS -eq $OFF ]; then
-		        echoerr "Build failed see log file at ~/lastbuild.log for more details" &> ${ERROR_REDIRECT}
-                tail -15 ~/lastbuild.log > ${ERROR_REDIRECT}
+		        echoerr "Build failed! see log file at ${REDIRECTION} for more details" &> "${ERROR_REDIRECT}"
+                tail -15 ${REDIRECTION} &> "${ERROR_REDIRECT}"
 		    else
-		        echoerr "Build Failed" &> ${ERROR_REDIRECT}
+		        echoerr "Build Failed" &> "${ERROR_REDIRECT}"
 		    fi
 
 			#echoinf "Deleting node* directories"
@@ -275,7 +269,7 @@ build () {
 			return $(andClean 1)
 		fi
 
-		echo "\033[0;32mBUILD SUCCESS\033[0m" > ${ERROR_REDIRECT}
+		echo "\033[0;32mBUILD SUCCESS\033[0m" > "${ERROR_REDIRECT}"
 
 	fi	
 	        

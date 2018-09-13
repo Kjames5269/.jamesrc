@@ -131,6 +131,6 @@ function cleanupGetFirstJiraCommit() {
 }
 
 function createLogEntry() {
-    echo "${1} -- $(cb) -- $(${whichGit} log --format="%H -- %s" | head -1) ${2}" >> ${GIT_HOME}/.git/personalCommit.log
+    echo "$(date +'%m.%d %H:%M') -- ${1} -- $(cb) -- $(${whichGit} log --format="%H -- %s" | head -1) ${2}" >> ${GIT_HOME}/.git/personalCommits.log
 }
 

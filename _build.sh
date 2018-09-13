@@ -253,7 +253,7 @@ build () {
 
 		echoinf "Maven Building..."
 
-        mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} > "${REDIRECTION}"
+        mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} &> "${REDIRECTION}"
 
 		if [ $? -ne 0 ]; then
 		    if [ $NULLS -eq $OFF ]; then

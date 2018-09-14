@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+_GIT_SAVED="Saved"
+
+# Ever had that oh shit moment? Log the current commit you're at with a timestamp
+function presaveHook() {
+    createLogEntry ${_GIT_SAVED}
+    echo "State saved at ${GIT_HOME}/.git/personalCommits.log"
+    tail -1 ${GIT_HOME}/.git/personalCommits.log
+    return 2
+}
+
+function preloadHook() {
+    if [ ! -f ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG} ]; then
+        echo "No logs within ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG}"
+        return 1
+    fi
+
+    tuple=$(cut -f3- -d '-' ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG} | egrep "^\ ${_GIT_SAVED}\ --.*$" | tail -1)
+
+    if [ -z ${tuple} ]; then
+        echo "No Save points within ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG}"
+        return 1
+    fi
+    commitHash=$(echo ${tuple} | awk -F" -- " '{print $3}')
+
+    _git_saved_state=$(${whichGit} log --format="%H -- %s" | head -1)
+
+    ARGS=("checkout" "${commitHash}")
+    unset tuple
+}
+
+function postloadHook() {
+    createLogEntry "Loaded" "-- from ${_git_saved_state}"
+    unset _git_saved_state
+    unset commitHash
+}

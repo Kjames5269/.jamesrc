@@ -130,7 +130,20 @@ function cleanupGetFirstJiraCommit() {
     unset -f currBranchCheck
 }
 
-function createLogEntry() {
-    echo "$(date +'%m.%d %H:%M') -- ${1} -- $(cb) -- $(${whichGit} log --format="%H -- %s" | head -1) ${2}" >> ${GIT_HOME}/.git/personalCommits.log
+_GIT_PERSONAL_COMMIT_LOG="personalCommits.log"
+
+function prelogHook() {
+    if [[ ${ARGS[2]} == "personal" ]]; then
+        cat ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG}
+        return 2
+    fi
+
 }
+function createLogEntry() {
+    echo "$(date +'%m.%d %H:%M') -- ${1} -- $(cb) -- $(${whichGit} log --format="%H -- %s" | head -1) ${2}" >> ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG}
+}
+
+#ToDo when the month is > x difference get the first log entry and delete all entries of the same month.
+#This can be done because git only saves dangling commits for so long and having a few months of logs should be more than enough time
+#To realize that you can fix something
 

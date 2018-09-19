@@ -20,6 +20,7 @@ FFORIGIN="0" # Should it assume an origin?
 # These can be turned off by setting FFORIGIN to 0
 
 function preffHook() {
+    DEBUG $0 "DEFAULTS :: ORIGIN=$ORIGIN, FFORIGIN=${FFORIGIN}"
 
     ffmerge="merge"
     ffonly="--ff-only"
@@ -43,13 +44,12 @@ function preffHook() {
     elif [ ${#ARGS[@]} -eq 1 ]; then
         searchForOrigin $(cb)
     else
-        echoerr "Invalid use of ff (merge --ff-only) $@"
-        echoerr " $ git ff ${ORIGIN}/$(cb)"
-
         unset ffmerge
         unset ffonly
         unset fforigin
 
+        echoerr "Invalid use of ff (merge --ff-only) $@"
+        echoerr " $ git ff ${ORIGIN}/$(cb)"
         return $?
     fi
 
@@ -59,6 +59,14 @@ function preffHook() {
 }
 
 function searchForOrigin() {
+    # Check to make sure it's not already tracking a branch.
+    tracking=$(${whichGit} for-each-ref --format='%(upstream:short)' $(${whichGit} symbolic-ref -q HEAD)) 2> /dev/null
+    if [[ ${tracking} != "" ]]; then
+        DEBUG $0 "$1 is tracking ${tracking}"
+        ARGS=(${ffmerge} ${ffonly} ${tracking})
+        return
+    fi
+
     ${whichGit} remote -v | grep ${ORIGIN} &> /dev/null
     if [ $? -eq 0 ]; then
         ARGS=(${ffmerge} ${ffonly} "${ORIGIN}/$1")

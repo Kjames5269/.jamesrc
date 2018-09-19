@@ -29,6 +29,6 @@ function prerebaseHook() {
         return 0
     fi
 
-    ARGS=$(${1} "${2}/${3}")
+    ARGS=(${1} "${2}/${3}")
 
 }

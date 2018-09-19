@@ -142,22 +142,23 @@ function getFirstJiraCommit() {
     oldIFS=$IFS
     IFS=$'\n'
     for i in $(${whichGit} log --format="%H %s"); do
-        DEBUG $0 "The log entry for %H %s is :: $i"
 
         if [ -z $FCommit ]; then
 
             FCommit=$(echo $i | cut -f2- -d ' ')
             FTag=$(echo $i | cut -f2 -d ' ')
-            DEBUG $0 "The first commit is :: $FCommit"
-            DEBUG $0 "Tag'd :: $FTag"
+            DEBUG $0 "The first commit is :: \"$FCommit\" :: With tag ${FTag}"
             continue
         fi
 
         CTag=$(echo $i | cut -f2 -d ' ')
 
+        DEBUG $0 "log :: $i :: With tag ${CTag}"
+
         if [[ ${CTag} != ${FTag} ]]; then
 
             firstJiraCommit=$(echo $i | cut -f1 -d ' ')
+            DEBUG $0 "Returning ${FCommit}"
             break
         fi
         FCommit=$(echo $i | cut -f2- -d ' ')

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 function preaddHook() {
-     if ! [ -f "${GIT_HOME}/pom.xml" ] || [ $# -eq 1 ]; then
+     if [ ! -f "${GIT_HOME}/pom.xml" ] || [ $# -eq 1 ]; then
         return 0
      fi
 
@@ -14,12 +14,17 @@ function preaddHook() {
 
 function checkMvnValidate() {
 
+    basePath=$(pwd)
+
+    # Accounts fpr git add ${file} but it can only take one file at a time...
     if [ -e $2 ]; then
-        # This isn't perfect but it should be "good enough"
-        listOfChanged=($(${whichGit} ls-files -m  | grep /src/ | grep $2 | awk -F"/src/" '{print $1}' | uniq))
+        # TODO mongoloids can put absoulute paths and this would fail.
+        listOfChanged=($(echo ${2} | awk -F"/src/" '{print $1}' | uniq))
+    # Accounts for git add -p (and yes this is not the best code)
     elif [ $# -eq 2 ]; then
-        #listOfChanged=($(${whichGit} status --short | grep /src/ | awk -F"/src/" '{print $1}' | cut -c4- | uniq))
+        cd ${GIT_HOME}
         listOfChanged=($(${whichGit} ls-files -m | grep /src/ | awk -F"/src/" '{print $1}' | uniq))
+        cd ${basePath}
     else
         echoerr "This is not yet implemented. Add one file at a time"
         return $?
@@ -41,7 +46,7 @@ function checkMvnValidate() {
 
         for i in ${listOfChanged[@]}; do
             DEBUG $0 "Spawning child for $i..."
-            ( mvnFmt ${GIT_HOME}/${i} & )
+            ( mvnFmt ${basePath}/${i} & )
         done
 
         # R A C E  C O N D I T I O N S

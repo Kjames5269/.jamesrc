@@ -5,7 +5,7 @@ _GIT_SAVED="Saved"
 # Ever had that oh shit moment? Log the current commit you're at with a timestamp
 function presaveHook() {
     createLogEntry ${_GIT_SAVED}
-    echo "State saved at ${GIT_HOME}/.git/personalCommits.log"
+    echo "State saved at ${GIT_HOME}/.git/personalCommits.log *making a branch would do this as well :)"
     tail -1 ${GIT_HOME}/.git/personalCommits.log
     return 2
 }

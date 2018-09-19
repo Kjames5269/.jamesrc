@@ -25,6 +25,8 @@ function checkMvnValidate() {
         return $?
     fi
 
+    DEBUG $0 "listOfChanged files after filtering :: ${listOfChanged[@]}"
+
     mavenFmtDirName="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING/"
     mavenFmtDirErrors="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING_ERRORS/"
 
@@ -38,6 +40,7 @@ function checkMvnValidate() {
         mkdir ${mavenFmtDirErrors}
 
         for i in ${listOfChanged[@]}; do
+            DEBUG $0 "Spawning child for $i..."
             ( mvnFmt ${GIT_HOME}/${i} & )
         done
 
@@ -89,6 +92,7 @@ function checkMvnValidate() {
 }
 function mvnFmt() {
     if ! [ -d $1 ]; then
+        DEBUG $0 "$1 is not a directory with $(pwd)"
         return 0
     fi
 
@@ -96,7 +100,11 @@ function mvnFmt() {
 
     mkdir ${mavenFmtDirName}${myPid}
 
-    echoinf "mvn validate: $1"
+    test -z ${GIT_DEBUG} || extraInfoPID="$myPid"
+
+    echoinf "mvn validate: $1 ${extraInfoPID}"
+
+    unset extraInfoPID
 
     cd $1
     

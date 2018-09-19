@@ -45,12 +45,15 @@ function postpubHook() {
 }
 
 function prerequestHook() {
-    if [ $# -eq 1 ] && ! [ -z ${lGIT_URL} ]; then
+    DEBUG $0 "lGITURL :: ${lGITURL}"
+    if [ $# -eq 1 ] && [ ! -z ${lGIT_URL} ]; then
         open ${lGIT_URL}
     else
         unset lGIT_URL
         getGitURL ${ARGS[@]}
-        if [ -z ${lGIT_URL} ]; then
+        DEBUG $0 "lGITURL :: ${lGITURL}"
+
+        if [ $? -ne 0 ]; then
             echoerr "git ${ARGS[@]} was not able to obtain the current remote, does the remote exist?"
             return $?
         fi
@@ -64,6 +67,8 @@ function getGitURL() {
 
     if [ $# -lt 2 ]; then
         tracking=$(${whichGit} for-each-ref --format='%(upstream:short)' $(${whichGit} symbolic-ref -q HEAD)) 2> /dev/null
+
+        DEBUG $0 "tracking - \"${tracking}\" retval: $?"
 
         if [ $? -ne 0 ]; then
             return $?
@@ -82,11 +87,14 @@ function getGitURL() {
 
     if [[ $# -eq 3 ]]; then
         lGIT_BRANCH="tree/${gitURLArgs[3]}"
+        DEBUG $0 "lGIT_BRANCH - ${lGIT_BRANCH}"
     fi
 
     lGIT_URL="$(${whichGit} config --get "remote.${gitURLArgs[2]}.url")/"
+
+    DEBUG $0 "${whichGit} config --get remote.${gitURLArgs[2]}.url returned \"${lGIT_URL}\""
     # If the remote is not found
-    if [[ ${lGIT_URL} == "" ]]; then
+    if [[ ${lGIT_URL} == "/" ]]; then
         return 1
     fi
     # If it is SSH

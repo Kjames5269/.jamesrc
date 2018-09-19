@@ -7,7 +7,10 @@ function precheckoutHook() {
     fi
 
     if [[ $2 =~ ^:$ ]]; then
+
         neighborBranch=$(${whichGit} branch | grep $(cb | cut -f1,2 -d '-') | grep -v \*)
+        DEBUG $0 "Found neighbor ${neighborBranch}"
+
         if [[ ${neighborBranch} == "" ]]; then
             echoerr "git $@ has no neighbor branch"
             return $?
@@ -20,6 +23,8 @@ function precheckoutHook() {
         baseBranch=$(${whichGit} branch | grep \* | cut -c3- | cut -f1,2 -d '-')
         extension=$(echo $2 | cut -c2-)
         neighborBranch=$(${whichGit} branch | grep ${baseBranch}-${extension})
+        DEBUG $0 "Found neighbor ${neighborBranch}"
+
         if [ $? -ne 0 ]; then
             neighborBaseBranch=$(${whichGit} branch | grep "^ *"${extension}"$" | cut -c3-)
             if [[ ${neighborBaseBranch} == "" ]]; then
@@ -29,6 +34,7 @@ function precheckoutHook() {
 
             getFirstJiraCommit
 
+            DEBUG $0 ">> ${whichGit} checkout -b ${baseBranch}-${extension}"
             ${whichGit} checkout -b "${baseBranch}-${extension}"
             if [ $? -ne 0 ]; then
                 return $?
@@ -48,6 +54,8 @@ function precheckoutHook() {
         getFirstJiraCommit
 
         neighborBranch=$(echo ${baseBranch} | cut -f1-${count// /} -d '-')
+
+        DEBUG $0 ">> ${whichGit} checkout -b ${baseBranch}-${extension}"
         ${whichGit} checkout -b ${neighborBranch}
         if [ $? -ne 0 ]; then
             return $?

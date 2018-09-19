@@ -7,6 +7,7 @@ function presquashHook() {
 
     getFirstJiraCommit
 
+    DEBUG $0 ">> ${whichGit} reset --soft "${firstJiraCommit}""
     ${whichGit} reset --soft "${firstJiraCommit}"
 
     if [ $# -eq 3 ] && [[ $2 == "-m" ]]; then

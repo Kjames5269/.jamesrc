@@ -6,7 +6,7 @@ alias cc="/usr/bin/git rev-parse HEAD"
 # A git wrapper just so you can pass cb as current branch to any command
 # To get the auto completion scripts shamelessly steal them from the hub github using... TODO
 
-unalias git
+test $(alias | egrep "^git=") && unalias git
 
 function gitWrapSetup() {
 
@@ -25,12 +25,18 @@ function gitWrapSetup() {
     fi
 
     GIT_HOME=$(${whichGit} rev-parse --show-toplevel) &> /dev/null
+    GIT_OUTPUT="/dev/stdout"
 }
 
 function gitWrap() {
 
+    if [[ $1 == debug ]]; then
+        GIT_DEBUG=1
+        shift
+    fi
+
     # # # # # # # # # # # # # # # # # # # # #
-    # "Private" functions
+    # "Package Private" functions
     #
 
 	function gitWrapCleanUp() {
@@ -38,6 +44,15 @@ function gitWrap() {
         unset length
         unset GIT_HOME
         unset whichGit
+        unset GIT_DEBUG
+        unset debugRetval
+
+        if [ -f ${GIT_OUTPUT} ]; then
+            /bin/rm ${GIT_OUTPUT}
+        fi
+        unset GIT_OUTPUT
+        unset -f DEBUG
+
     }
 
     function currBranchCheck() {
@@ -54,6 +69,16 @@ function gitWrap() {
 
     }
 
+    function DEBUG() {
+        # Get the return value of whatever came before it so $? can be used after DEBUG statements
+        debugRetval=$?
+        debugCaller=$1
+        shift
+        test -z ${GIT_DEBUG} || echodebug "${debugCaller}(): ${@}"
+        unset debugCaller
+        return $debugRetval
+    }
+
     # --------------------------------------
 
     currBranchCheck $@
@@ -63,6 +88,8 @@ function gitWrap() {
     # -- PreHooks
     #
     if typeset -f pre$1Hook > /dev/null; then
+
+        DEBUG $0 "Running a prehook for $1"
 
         pre$1Hook ${ARGS[@]}
         test $? -ne 0 && gitWrapCleanUp && return $(( $? == 2 ))
@@ -75,12 +102,26 @@ function gitWrap() {
 
     # --------------------------------------
 
-	${whichGit} ${ARGS[@]}
+    DEBUG $0 ">> ${whichGit} ${ARGS[@]} &> ${GIT_OUTPUT}"
+
+	${whichGit} ${ARGS[@]} &> ${GIT_OUTPUT}
+
+    retval=$?
+	if [ ${retval} -ne 0 ]; then
+	    if [ -f ${GIT_OUTPUT} ]; then
+            /bin/cat ${GIT_OUTPUT} 1>&2
+        fi
+        gitWrapCleanUp
+        unset -f gitWrapCleanUp
+        return ${retval}
+    fi
 
     # # # # # # # # # # # # # # # # # # # # #
     # -- PostHooks
     #
     if typeset -f post$1Hook > /dev/null; then
+
+        DEBUG $0 "Running a posthook for $1"
 
         post$1Hook ${ARGS[@]}
         test $? -ne 0 && gitWrapCleanUp && return $(( $? == 2 ))
@@ -92,6 +133,7 @@ function gitWrap() {
 	# remove all set variables
     gitWrapCleanUp
     unset -f gitWrapCleanUp
+    return ${retval}
 }
 
 alias git=gitWrap
@@ -100,13 +142,16 @@ function getFirstJiraCommit() {
     oldIFS=$IFS
     IFS=$'\n'
     for i in $(${whichGit} log --format="%H %s"); do
+        DEBUG $0 "The log entry for %H %s is :: $i"
+
         if [ -z $FCommit ]; then
 
             FCommit=$(echo $i | cut -f2- -d ' ')
             FTag=$(echo $i | cut -f2 -d ' ')
+            DEBUG $0 "The first commit is :: $FCommit"
+            DEBUG $0 "Tag'd :: $FTag"
             continue
         fi
-        #echo "$i"
 
         CTag=$(echo $i | cut -f2 -d ' ')
 

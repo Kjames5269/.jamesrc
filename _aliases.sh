@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 OPENED_AT=$(pwd)
 
 PathToIntelliJ="/usr/local/bin/idea"

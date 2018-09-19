@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 createFiles() {
 
 	#Set up the original file

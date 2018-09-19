@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/sh
 
 alias cb="/usr/bin/git rev-parse --abbrev-ref HEAD"
 alias cc="/usr/bin/git rev-parse HEAD"

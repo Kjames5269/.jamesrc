@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 
 ORIGIN="upstream"
 FFORIGIN="0" # Should it assume an origin?

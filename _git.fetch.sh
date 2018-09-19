@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 
 TIMELY_FETCH=1
 # in minutes
@@ -15,10 +15,13 @@ function updateFetchDate() {
 function checkFetchGuard() {
 
     if [ -f ${GIT_HOME}/.git/FETCH_GUARD ]; then
-        if [[ $sysparams[pid] == $(head -1 ${GIT_HOME}/.git/FETCH_GUARD) ]]; then
+        getPid
+        if [[ $myPid == $(head -1 ${GIT_HOME}/.git/FETCH_GUARD) ]]; then
             # We are the process who owns the guard (or another process beat us here by a second...
+            unset myPid
             return 0
         fi
+        unset myPid
         echoinf "Fetch is running with PID $(head -1 ${GIT_HOME}/.git/FETCH_GUARD), waiting..."
 
         echo "$$" >> ${GIT_HOME}/.git/FETCH_GUARD
@@ -30,7 +33,7 @@ function checkFetchGuard() {
 }
 function gitFetch() {
 
-        (echo $sysparams[pid] > ${GIT_HOME}/.git/FETCH_GUARD ;${whichGit} fetch --all > ${GIT_HOME}/.git/lastFetch)
+        (getPid && echo ${myPid} > ${GIT_HOME}/.git/FETCH_GUARD ;${whichGit} fetch --all > ${GIT_HOME}/.git/lastFetch; unset myPid)
 
         wait
 

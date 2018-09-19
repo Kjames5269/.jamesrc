@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 
 AUTO_SET_REMOTE=0
 ASSUME_ORIGIN=1

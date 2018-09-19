@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 
 function presquashHook() {
     if typeset -f checkFetchGuard > /dev/null; then

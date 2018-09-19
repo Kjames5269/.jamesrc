@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # This requires the Jira plugin to be installed on oh-my-zsh
 # ( or a pre-existing jira command that takes the same arguments )

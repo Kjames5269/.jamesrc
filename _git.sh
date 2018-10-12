@@ -30,9 +30,14 @@ function gitWrapSetup() {
 
 function gitWrap() {
 
-    if [[ $1 == debug ]]; then
+    if [[ $1 == "debug" ]]; then
         GIT_DEBUG=1
         shift
+    elif [[ $1 == "trace" ]]; then
+        GIT_DEBUG=2
+        shift
+    else
+        GIT_DEBUG=0
     fi
 
     # # # # # # # # # # # # # # # # # # # # #
@@ -44,15 +49,16 @@ function gitWrap() {
         unset length
         unset GIT_HOME
         unset whichGit
-        unset GIT_DEBUG
+
         unset debugRetval
 
-        if [ -f ${GIT_OUTPUT} ]; then
+        if [ -f ${GIT_OUTPUT} ] && [[ ! ${GIT_OUTPUT} =~ "^/dev/.*$" ]] ; then
             /bin/rm ${GIT_OUTPUT}
         fi
         unset GIT_OUTPUT
-        unset -f DEBUG
-
+        unset -f C
+        unset GIT_DEBUG
+        unset debugRetval
     }
 
     function currBranchCheck() {
@@ -69,16 +75,11 @@ function gitWrap() {
 
     }
 
-    function DEBUG() {
-        # Get the return value of whatever came before it so $? can be used after DEBUG statements
-        debugRetval=$?
-        debugCaller=$1
-        shift
-        test -z ${GIT_DEBUG} || echodebug "${debugCaller}(): ${@}"
-        unset debugCaller
-        return $debugRetval
+    function C() {
+        DEBUG trace ${1} "starting... ARGS=(${@:2})"
+        ${1} ${@:2}
+        DEBUG trace ${1} "finishing... retval=$?..."
     }
-
     # --------------------------------------
 
     currBranchCheck $@
@@ -89,22 +90,18 @@ function gitWrap() {
     #
     if typeset -f pre$1Hook > /dev/null; then
 
-        DEBUG $0 "Running a prehook for $1"
-
-        pre$1Hook ${ARGS[@]}
+        C pre$1Hook ${ARGS[@]}
         test $? -ne 0 && gitWrapCleanUp && return $(( $? == 2 ))
 
     fi
 
     if typeset -f checkFetchGuard > /dev/null; then
-        checkFetchGuard
+        C checkFetchGuard
     fi
 
     # --------------------------------------
 
-    DEBUG $0 ">> ${whichGit} ${ARGS[@]} &> ${GIT_OUTPUT}"
-
-	${whichGit} ${ARGS[@]} &> ${GIT_OUTPUT}
+	C ${whichGit} ${ARGS[@]} &> ${GIT_OUTPUT}
 
     retval=$?
 	if [ ${retval} -ne 0 ]; then
@@ -121,9 +118,7 @@ function gitWrap() {
     #
     if typeset -f post$1Hook > /dev/null; then
 
-        DEBUG $0 "Running a posthook for $1"
-
-        post$1Hook ${ARGS[@]}
+        C post$1Hook ${ARGS[@]}
         test $? -ne 0 && gitWrapCleanUp && return $(( $? == 2 ))
 
     fi
@@ -201,3 +196,25 @@ function createLogEntry() {
 #This can be done because git only saves dangling commits for so long and having a few months of logs should be more than enough time
 #To realize that you can fix something
 
+function DEBUG() {
+    # Get the return value of whatever came before it so $? can be used after DEBUG statements
+    debugRetval=$?
+    case $1 in
+        "trace")
+            debugLevel="trace"
+            debugNo=2
+            shift
+            ;;
+        *)
+            debugLevel="debug"
+            debugNo=1
+            ;;
+    esac
+    debugCaller=$1
+    shift
+    test ${GIT_DEBUG} -ge ${debugNo} && echo${debugLevel} "${debugCaller}(): ${@}"
+    unset debugCaller
+    unset debugNo
+    unset debugLevel
+    return $debugRetval
+}

@@ -38,11 +38,11 @@ function preffHook() {
             if [ $? -ne 0 ]; then
                 ARGS=(${ffmerge} ${ffonly} "${ARGS[2]}/$(cb)")
             else
-                searchForOrigin ${ARGS[2]}
+                C searchForOrigin ${ARGS[2]}
             fi
 	fi
     elif [ ${#ARGS[@]} -eq 1 ]; then
-        searchForOrigin $(cb)
+        C searchForOrigin $(cb)
     else
         unset ffmerge
         unset ffonly

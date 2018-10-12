@@ -5,10 +5,9 @@ function presquashHook() {
         checkFetchGuard
     fi
 
-    getFirstJiraCommit
+    C getFirstJiraCommit
 
-    DEBUG $0 ">> ${whichGit} reset --soft "${firstJiraCommit}""
-    ${whichGit} reset --soft "${firstJiraCommit}"
+    C ${whichGit} reset --soft "${firstJiraCommit}"
 
     if [ $# -eq 3 ] && [[ $2 == "-m" ]]; then
         FCommit="$3"
@@ -16,12 +15,12 @@ function presquashHook() {
 
     ARGS=("commit" "-m" "$FCommit")
 
-    cleanupGetFirstJiraCommit
+    C cleanupGetFirstJiraCommit
 
 }
 
 function postsquashHook() {
-    createLogEntry "squash"
+    C createLogEntry "squash"
 }
 
 function prerebaseHook() {

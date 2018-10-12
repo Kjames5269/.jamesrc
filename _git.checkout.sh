@@ -32,7 +32,7 @@ function precheckoutHook() {
                 return $?
             fi
 
-            getFirstJiraCommit
+            C getFirstJiraCommit
 
             DEBUG $0 ">> ${whichGit} checkout -b ${baseBranch}-${extension}"
             ${whichGit} checkout -b "${baseBranch}-${extension}"
@@ -51,7 +51,7 @@ function precheckoutHook() {
             return $?
         fi
 
-        getFirstJiraCommit
+        C getFirstJiraCommit
 
         neighborBranch=$(echo ${baseBranch} | cut -f1-${count// /} -d '-')
 

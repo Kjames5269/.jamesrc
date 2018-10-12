@@ -4,7 +4,7 @@ AUTO_SET_REMOTE=0
 ASSUME_ORIGIN=1
 
 function prepushHook() {
-    getGitURL $@
+    C getGitURL $@
 
     if [ ${ASSUME_ORIGIN} -eq 0 ] && [ ${#ARGS[@]} -ne 3 ]; then
         return 0
@@ -40,7 +40,7 @@ function prepubHook() {
 
 function postpubHook() {
     if [ $? -eq 0 ]; then
-        open ${lGIT_URL}
+        C open ${lGIT_URL}
     fi
 }
 
@@ -50,7 +50,7 @@ function prerequestHook() {
         open ${lGIT_URL}
     else
         unset lGIT_URL
-        getGitURL ${ARGS[@]}
+        C getGitURL ${ARGS[@]}
         DEBUG $0 "lGITURL :: ${lGITURL}"
 
         if [ $? -ne 0 ]; then
@@ -95,6 +95,7 @@ function getGitURL() {
     DEBUG $0 "${whichGit} config --get remote.${gitURLArgs[2]}.url returned \"${lGIT_URL}\""
     # If the remote is not found
     if [[ ${lGIT_URL} == "/" ]]; then
+        unset lGIT_BRANCH
         return 1
     fi
     # If it is SSH

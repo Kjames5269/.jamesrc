@@ -11,3 +11,7 @@ function echoinf() {
 function echodebug() {
     printf "[\033[38;5;227mDEBUG\033[0m] %s\n" "$*" >&2
 }
+
+function echotrace() {
+    printf "[\033[38;5;244mTRACE\033[0m] %s\n" "$*" >&2
+}

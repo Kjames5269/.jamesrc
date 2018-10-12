@@ -11,6 +11,8 @@ function precommitHook() {
 
     currBranch=$(cb | cut -f1,2 -d '-' )
 
+    DEBUG $0 "Current Branch is ${CurrBranch}"
+
     # git (1)commit -: commit message starts at 3
     msg=$(echo ${@:3:$#})
 

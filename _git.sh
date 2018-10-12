@@ -180,7 +180,15 @@ _GIT_PERSONAL_COMMIT_LOG="personalCommits.log"
 
 function prelogHook() {
     if [[ ${ARGS[2]} == "personal" ]]; then
-        cat ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG}
+        if [ -f ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG} ]; then
+            cat ${GIT_HOME}/.git/${_GIT_PERSONAL_COMMIT_LOG}
+            return 2
+        else
+            echo "no personal log yet..."
+            return 1
+        fi
+    elif [[ ${ARGS[2]} == "head" ]]; then
+        cut -f1,2,3,6- -d ' ' ${GIT_HOME}/.git/logs/HEAD
         return 2
     fi
 

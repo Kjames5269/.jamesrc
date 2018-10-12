@@ -1,7 +1,7 @@
 #!/bin/sh
 
 function preaddHook() {
-     if ! [ -f "${GIT_HOME}/pom.xml" ] || [ $# -eq 1 ]; then
+     if [ ! -f "${GIT_HOME}/pom.xml" ] || [ $# -eq 1 ]; then
         return 0
      fi
 

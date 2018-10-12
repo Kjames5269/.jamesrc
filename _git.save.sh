@@ -23,15 +23,21 @@ function preloadHook() {
         return 1
     fi
     commitHash=$(echo ${tuple} | awk -F" -- " '{print $3}')
-
-    _git_saved_state=$(${whichGit} log --format="%H -- %s" | head -1)
+    savedBranch=$(echo ${tuple} | awk -F" -- " '{print $2}')
 
     ARGS=("checkout" "${commitHash}")
-    unset tuple
+
+    GIT_OUTPUT="${GIT_HOME}/tmpOutput"
+
 }
 
 function postloadHook() {
-    createLogEntry "Loaded" "-- from ${_git_saved_state}"
-    unset _git_saved_state
+    ${whichGit} branch -f "${savedBranch}" &> ${GIT_OUTPUT}
+    ${whichGit} checkout ${savedBranch} &> ${GIT_OUTPUT}
+    createLogEntry "Loaded" "-- from ${tuple}"
+
+    echo "Loaded Successfully"
     unset commitHash
+    unset savedBranch
+    unset tuple
 }

@@ -87,14 +87,21 @@ function autoFetch() {
     fi
 }
 
-function cdWrap() {
+environment=$(echo ${SHELL} | rev | cut -f1 -d '/' | rev)
 
-    if [ $# -ne 0 ] && [ -f $1 ] && [[ $(echo $1 | egrep "/src/") != "" ]]; then
-        cd $(echo $1 | awk -F"/src/" '{print $1}')
-    else
-        cd $1
-    fi
-    autoFetch
-}
+case ${environment} in
+    "zsh")
+        function precmd() {
+            autoFetch
+        }
+        ;;
+    "bash")
+        PROMPT_COMMAND="${PROMPT_COMMAND}autoFetch;"
+        ;;
+    *)
+        echoerr "$environment is currently not supported"
+        ;;
+esac
+unset environment
 
 alias cd=cdWrap

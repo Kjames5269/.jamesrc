@@ -304,6 +304,7 @@ build () {
 	unzip "${TO_PATH}${projname}" > /dev/null
 
 	mv "${TO_PATH}${projname}" "$FROM_PATH"
+	touch "${nonZipDir}"
 
 	if [[ ! -z $BRANCH ]]; then
 	    echoinf "Renaming to ${nonZipDir}${BRANCH}"

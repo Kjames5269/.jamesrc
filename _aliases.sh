@@ -21,6 +21,10 @@ mkcd () {
 	mkdir -p $1 && cd $1
 }
 
+purge() {
+	rm -rf $(find . -maxdepth 1 -ctime +20 -type d)
+}
+
 ij () {
 	if [ $# -eq 1 ] && [ -d $1  ]; then
 		openDir=$1
@@ -31,6 +35,17 @@ ij () {
 		openDir=$(pwd)
 	fi
 	${PathToIntelliJ} ${openDir}
+}
+
+# If you ctrl shift click an intellij file it'll get the absolute path. This makes that cd to the base maven dir
+function cdWrap() {
+
+    if [ $# -ne 0 ] && [ -f $1 ] && [[ $(echo $1 | egrep "/src/") != "" ]]; then
+        cd $(echo $1 | awk -F"/src/" '{print $1}')
+    else
+        cd $1
+    fi
+
 }
 
 mvnhome() {
@@ -73,3 +88,33 @@ if [ -f ~/.jamesrc/.workspaceLocationFile ]; then
 	alias workspace="cd $WORKSPACE"
 	alias proj="cd $WORKSPACE"
 fi
+
+function cdn () {
+	cd $(ls -dt */ | head -1)
+}
+
+function start() {
+    if [ $# -ne 1 ]; then
+        echoerr "$0 takes the name of the project to start"
+        return $?
+    fi
+
+    WORKSPACE=$(cat ~/.jamesrc/.workspaceLocationFile)
+    toStart=$(ls -t ${WORKSPACE}../lib/${1}/ | head -1)
+    echoinf "Starting ${toStart}"
+
+    ${WORKSPACE}../lib/${1}/${toStart}/bin/${1}
+
+    unset WORKSPACE
+}
+
+
+function run() {
+    if [ -f $1 ]; then
+        $SHELL $@
+    elif [ -f ~/scripts/$1 ]; then
+        $SHELL ~/scripts/$@
+    else
+        echoerr "> $0 $@ :: $1 not found"
+    fi
+}

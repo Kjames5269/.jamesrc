@@ -1,15 +1,18 @@
 #!/bin/sh
 
+MVN_FMT_THREADS=7
+
 function preaddHook() {
      if [ ! -f "${GIT_HOME}/pom.xml" ] || [ $# -eq 1 ]; then
         return 0
      fi
 
-     checkMvnValidate $@
+     C checkMvnValidate $@
 
      unset listOfChanged
      unset mavenFmtDirName
      unset mavenFmtDirErrors
+     unset basePath
 }
 
 function checkMvnValidate() {
@@ -24,36 +27,55 @@ function checkMvnValidate() {
         echoerr "This is not yet implemented. Add one file at a time"
         return $?
     fi
-
     DEBUG $0 "listOfChanged files after filtering :: ${listOfChanged[@]}"
 
     mavenFmtDirName="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING/"
     mavenFmtDirErrors="${GIT_HOME}/.git/_GIT_MAVEN_FORMATTING_ERRORS/"
 
-    if [ -d ${mavenFmtDirErrors} ]; then
-        rm -rf ${mavenFmtDirErrors}
-    fi
-
     if [ ${#listOfChanged[@]} -gt 0 ]; then
+
+        if [ -d ${mavenFmtDirErrors} ]; then
+            rm -rf ${mavenFmtDirErrors}
+        fi
+
+        if [ -d ${mavenFmtDirName} ]; then
+            rm -rf ${mavenFmtDirName}
+        fi
 
         mkdir ${mavenFmtDirName}
         mkdir ${mavenFmtDirErrors}
 
-        for i in ${listOfChanged[@]}; do
-            DEBUG $0 "Spawning child for $i..."
-            ( mvnFmt ${GIT_HOME}/${i} & )
+        for i in $(alias | egrep "ferr[0-9]+=.*" | cut -f1 -d '='); do
+            unalias ${i}
         done
 
+        counter=1
+        currentThreads=0
+        while [[ ${counter} -le ${#listOfChanged[@]} ]]; do
+            DEBUG $0 "while: ${counter} -le ${#listOfChanged[@]}"
+            if [[ ${currentThreads} -lt ${MVN_FMT_THREADS} ]]; then
+                DEBUG $0 "if: ${currentThreads} -lt ${MVN_FMT_THREADS}"
+                ( C mvnFmt ${basePath}/${listOfChanged[${counter}]} & )
+                counter=$((${counter} + 1))
+                currentThreads=$((${currentThreads} + 1))
+            else
+                DEBUG $0 "Sleeping"
+                sleep .5
+                # This should account for removal of threads fine without allowing fast processes
+                # to get an extra thread active
+                if [ ${currentThreads} -ne $(/bin/ls ${mavenFmtDirName} | wc -l) ]; then
+                    currentThreads=$(/bin/ls ${mavenFmtDirName} | wc -l)
+                fi
+            fi
+        done
+
+        unset currentThreads
         # R A C E  C O N D I T I O N S
         # This is unfortunately done because I want quiet terminals
         # that are not cluttered with PID's of background processes
         # This however means that there is no way to wait for the child
         # since the child is technically done... So this was the alternative
         sleep 1
-
-        for i in $(alias | egrep "ferr[0-9]+=.*" | cut -f1 -d '='); do
-            unalias ${i}
-        done
 
         counter=0
         counter2=16
@@ -72,6 +94,7 @@ function checkMvnValidate() {
 
         echo ""
         unset counter
+        unset counter2
 
         rm -d ${mavenFmtDirName}
 

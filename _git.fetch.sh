@@ -17,11 +17,17 @@ function checkFetchGuard() {
     if [ -f ${GIT_HOME}/.git/FETCH_GUARD ]; then
         getPid
         if [[ $myPid == $(head -1 ${GIT_HOME}/.git/FETCH_GUARD) ]]; then
-            # We are the process who owns the guard (or another process beat us here by a second...
+            # We are the process who owns the guard (or another process beat us here by a second...)
             unset myPid
             return 0
         fi
         unset myPid
+
+	# Incase it locked it before we entered the PID.
+	if [ -f ${GIT_HOME}/.git/FETCH_GUARD ]; then
+		return 0
+	fi
+
         echoinf "Fetch is running with PID $(head -1 ${GIT_HOME}/.git/FETCH_GUARD), waiting..."
 
         echo "$$" >> ${GIT_HOME}/.git/FETCH_GUARD

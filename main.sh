@@ -1,6 +1,8 @@
 #!/bin/sh
 
-for i in $(/bin/ls /Users/$(whoami)/.jamesrc/_*.sh); do
+source "${HOME}/.jamesrc/.metadata/fileNames.sh"
+
+for i in $(find ${JRC_BASE_PATH} -name '_*.sh'); do
 	source $i
 done
 

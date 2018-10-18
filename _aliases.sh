@@ -42,6 +42,8 @@ function cdWrap() {
 
     if [ $# -ne 0 ] && [ -f $1 ] && [[ $(echo $1 | egrep "/src/") != "" ]]; then
         cd $(echo $1 | awk -F"/src/" '{print $1}')
+    elif [[ $1 =~ ^.*\.pom\.xml$ ]]; then
+	cd $(echo $1 | rev | cut -f2- -d '/' | rev)
     else
         cd $1
     fi
@@ -53,15 +55,15 @@ mvnhome() {
 	OLD_DIR=$(pwd)
 	
 	cd "$OPENED_AT"
-	MVNCMD=($(cat ~/.jamesrc/.workspaceDefaultMaven))
+	MVNCMD=($(cat ${JRC_DFLT_MAVEN}))
     mvn clean install ${MVNCMD[*]} ${@}
 
 	cd "$OLD_DIR"
 }
 
 #Set up global Variables
-if [ -f ~/.jamesrc/.workspaceLocationFile ]; then
-	WORKSPACE=$(cat ~/.jamesrc/.workspaceLocationFile)
+if [ -f ${JRC_WORKSPACE} ]; then
+	WORKSPACE=$(cat ${JRC_WORKSPACE})
 
 	# Creates an alias to cd to a directory in projects: iddf
 	# creates a variable to the project for use in shell. ij $ddf
@@ -93,13 +95,25 @@ function cdn () {
 	cd $(ls -dt */ | head -1)
 }
 
+function cdf () {
+	if [ $# -ne 1 ]; then
+		return 1
+	fi
+	temp=$(find . -name ${1} | grep -vi "/target/" | head -1)
+	if [ -z ${temp} ]; then
+		return 1
+	fi
+	cd ${temp}
+	unset temp
+}
+
 function start() {
     if [ $# -ne 1 ]; then
         echoerr "$0 takes the name of the project to start"
         return $?
     fi
 
-    WORKSPACE=$(cat ~/.jamesrc/.workspaceLocationFile)
+    WORKSPACE=$(cat ${JRC_WORKSPACE})
     toStart=$(ls -t ${WORKSPACE}../lib/${1}/ | head -1)
     echoinf "Starting ${toStart}"
 

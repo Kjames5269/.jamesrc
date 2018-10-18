@@ -11,13 +11,13 @@ DJIRA_USR="kyle.grady"
 DEFAULT_DJIRA_ARG="branch"
 
 # This uses two files:
-#   .workspaceJira
-#   .workspaceNicknames
+#   meta-jiraMetadata
+#   meta-jiraNicknames
 #
-# .workspaceJira has the following format:
+# meta-jiraMetadata has the following format:
 # JiraURL:ProjectName:JiraName
 #
-# .workspaceNicknames has the following format
+# meta-jiraNicknames has the following format
 # nickname:JiraName
 
 djira() {
@@ -30,8 +30,8 @@ djira() {
 		return 0
 	fi
 	
-	if [ -f ~/.jamesrc/.workspaceJira ]; then
-		JIRA_ARR=($(cat ~/.jamesrc/.workspaceJira))
+	if [ -f ${JRC_JIRA_META} ]; then
+		JIRA_ARR=($(cat ${JRC_JIRA_META}))
 	fi
 	
 	if [[ JIRA_ARR == "" ]]; then
@@ -43,7 +43,7 @@ djira() {
     if [[ -d .git ]]; then
         PROJ=$(pwd | rev | cut -f1 -d '/' | rev)
 
-        DJIRA_TUPLE=$(grep -i ${PROJ} ~/.jamesrc/.workspaceJira)
+        DJIRA_TUPLE=$(grep -i ${PROJ} ${JRC_JIRA_META})
         DJIRA_URL=$(echo ${DJIRA_TUPLE} | cut -f1,2 -d 'd')
         DJIRA_USR=$(echo ${DJIRA_TUPLE} | cut -f4 -d ':')
 
@@ -92,8 +92,8 @@ djira() {
 
     # If there are two arguments at this point its a user query
     # grep the file looking for nickname: if there's a match replace it with the full name
-	if [ $# -eq 2 ] && [ -f ~/.jamesrc/.workspaceNicknames ] ; then
-	    potentialName=$(grep -i ${2}: ~/.jamesrc/.workspaceNicknames | cut -f2 -d ':')
+	if [ $# -eq 2 ] && [ -f ${JRC_JIRA_NAMES} ] ; then
+	    potentialName=$(grep -i ${2}: ${JRC_JIRA_NAMES} | cut -f2 -d ':')
 
         if [ ! -z ${potentialName} ]; then
             DJIRA_USR=${potentialName}

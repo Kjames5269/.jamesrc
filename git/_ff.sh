@@ -62,15 +62,17 @@ function searchForOrigin() {
     # Check to make sure it's not already tracking a branch.
     tracking=$(${whichGit} for-each-ref --format='%(upstream:short)' $(${whichGit} symbolic-ref -q HEAD)) 2> /dev/null
     if [[ ${tracking} != "" ]]; then
-        DEBUG $0 "$1 is tracking ${tracking}"
+        DEBUG $0 "$1 is tracking ${tracking}. Using that as upstream"
         ARGS=(${ffmerge} ${ffonly} ${tracking})
         return
     fi
 
     ${whichGit} remote -v | grep ${ORIGIN} &> /dev/null
     if [ $? -eq 0 ]; then
+        DEBUG $0 "Found ${ORIGIN} in remotes setting to ${ORIGIN}/$1"
         ARGS=(${ffmerge} ${ffonly} "${ORIGIN}/$1")
     else
+         DEBUG $0 "Could not find default upstream [${ORIGIN}] using ${fforigin}/$1"
         ARGS=(${ffmerge} ${ffonly} "${fforigin}/$1")
     fi
 }

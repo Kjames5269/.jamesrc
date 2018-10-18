@@ -41,9 +41,9 @@ build () {
 		return 1
 	fi
 
-	WORKSPACE=$(cat ~/.jamesrc/.workspaceLocationFile)
+	WORKSPACE=$(cat ${JRC_WORKSPACE})
 
-	MVNCMD=($(cat ~/.jamesrc/.workspaceDefaultMaven))
+	MVNCMD=($(cat ${JRC_DFLT_MAVEN}))
 
 	if [ $# -eq 0 ]; then
 		echoerr "Specify a valid project: build ddf"
@@ -73,18 +73,18 @@ build () {
 		
 		case $1 in
 		    "--reset")
-			    rm ~/.jamesrc/.workspaceLocationFile
-			    rm ~/.jamesrc/.workspaceDefaultMaven
+			    rm ${JRC_WORKSPACE}
+			    rm ${JRC_DFLT_MAVEN}
 			    echoinf "Saved data reset"
 			    return 0
 			    ;;
             "--reset-maven")
-			    rm ~/.jamesrc/.workspaceDefaultMaven
+			    rm ${JRC_DFLT_MAVEN}
 			    echoinf "Maven Defaults reset"
 			    return 0
 			    ;;
             "--reset-path")
-                rm ~/.jamesrc/.workspaceLocationFile
+                rm ${JRC_WORKSPACE}
                 echoinf "Directory path defaults reset"
 			    return 0
 			    ;;
@@ -96,7 +96,7 @@ build () {
 			# Help commands are useful
 		    "--help")
 			echo "This script is intented to build any project with the ddf alliance setup with the current branch appended"
-			echo -e "Mvn Defaults: $(cat ~/.jamesrc/.workspaceDefaultMaven)\nDirectory Path: $(cat ~/.jamesrc/.workspaceLocationFile)"
+			echo -e "Mvn Defaults: $(cat ${JRC_DFLT_MAVEN})\nDirectory Path: $(cat ${JRC_WORKSPACE})"
 			echo -e "Supported args:\n\t-s to skip the build and unzip a new distro\n\t--reset to delete saved data \n\t\t--reset-maven\n\t\t--reset-path)"
 			echo -e "\t-m override using default maven commands (Can't override clean install)\n\t-v verbose to print maven"
 			echo -e "\t-n pipe maven output to /dev/null\n\t-ls to show directories in your saved directory\n\t-[number] change the thread count"

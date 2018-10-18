@@ -39,6 +39,7 @@ function gitWrap() {
     else
         GIT_DEBUG=0
     fi
+    #saveEnvVars
 
     # # # # # # # # # # # # # # # # # # # # #
     # "Package Private" functions

@@ -1,9 +1,7 @@
 #!/usr/bin/env sh
 
-gitNames="${HOME}/.jamesrc/.gitNames"
-
-if ! [ -f ${gitNames} ]; then
-    echo "" > "${gitNames}"
+if ! [ -f ${JRC_GIT_NAMES} ]; then
+    echo "" > "${JRC_GIT_NAMES}"
 fi
 
 function preremoteHook() {
@@ -13,7 +11,7 @@ function preremoteHook() {
 
     # TODO add in bitbucket compatibility
 
-    name=$(egrep "^${ARGS[3]}:" ${gitNames} | cut -f2 -d ':')
+    name=$(egrep "^${ARGS[3]}:" ${JRC_GIT_NAMES} | cut -f2 -d ':')
     DEBUG $0 "LF ${ARGS[3]}, found \"${name}\""
 
     # remote add name "URL"
@@ -39,11 +37,11 @@ function preremoteHook() {
         fi
 
         if [ -z ${name} ]; then
-            echo "${ARGS[3]}:${gitName}" >> ${gitNames}
-            DEBUG $0 "Adding ${ARGS[3]}:${gitName} to ${gitNames}"
+            echo "${ARGS[3]}:${gitName}" >> ${JRC_GIT_NAMES}
+            DEBUG $0 "Adding ${ARGS[3]}:${gitName} to ${JRC_GIT_NAMES}"
         else
             echoinf "updating the alias: ${gitName} from ${name} to ${gitName}..."
-            sed -i '' 's/'"${ARGS[3]}:${name}"'/'"${ARGS[3]}:${gitName}"'/' ${gitNames}
+            sed -i '' 's/'"${ARGS[3]}:${name}"'/'"${ARGS[3]}:${gitName}"'/' ${JRC_GIT_NAMES}
         #https://github.com/{user}/{project}
         fi
     fi

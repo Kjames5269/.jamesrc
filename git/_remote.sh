@@ -5,7 +5,7 @@ if ! [ -f ${JRC_GIT_NAMES} ]; then
 fi
 
 function preremoteHook() {
-    if [[ ${ARGS[2]} != "add" ]] && [ ${#ARGS[@]} -le 2 ]; then
+    if [[ ${ARGS[2]} != "add" ]] || [ ${#ARGS[@]} -le 2 ]; then
         return 0
     fi
 

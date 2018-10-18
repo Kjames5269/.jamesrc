@@ -17,6 +17,18 @@ alias mvnerr="cat ~/lastbuild.log"
 alias ip="ifconfig | grep 'inet ' | grep -Fv 127.0.0.1 | cut -f2 -d ' '"
 
 #functions
+function maven() {
+	mvn $@
+}
+
+countChars() {
+	if [ $# -lt 2 ]; then
+		echoerr "> $0 ',' \"Foo, bar, baz\""
+		exit
+	fi
+	echo ${2} | awk -F"${1}" '{print NF-1}'
+}
+
 mkcd () {
 	mkdir -p $1 && cd $1
 }
@@ -99,12 +111,29 @@ function cdf () {
 	if [ $# -ne 1 ]; then
 		return 1
 	fi
-	temp=$(find . -name ${1} | grep -vi "/target/" | head -1)
-	if [ -z ${temp} ]; then
+	# If youve got a larger directory depth than 1000 you got problems
+	len=1000
+	cdfPath=""
+	for i in $(find . -name ${1} -type d | grep -vi "/target/" | cut -f2- -d '/'); do
+
+		temLen=$(countChars '/' "$i")
+		if [ ${len} -gt ${temLen} ]; then
+			len=${temLen}
+			cdfPath="$i"
+			cdfOptions=""
+		elif [ ${len} -eq ${temLen} ]; then
+		    cdfOptions="${cdfOptions}\n$(pwd)/${i}"
+		fi
+	done
+	if [ -z ${cdfPath} ]; then
 		return 1
-	fi
-	cd ${temp}
-	unset temp
+    elif [ ! -z ${cdfOptions} ]; then
+        echo -n "Did you mean to CD to: "
+        echo -e "${cdfOptions}"
+    fi
+	cd ${cdfPath}
+	unset cdfPath
+	unset cdfOptions
 }
 
 function start() {

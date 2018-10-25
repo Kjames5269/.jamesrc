@@ -37,6 +37,15 @@ purge() {
 	rm -rf $(find . -maxdepth 1 -ctime +20 -type d)
 }
 
+acDebug() {
+    if [ -z ${acdebugger} ]; then
+        echoerr "ACDebugger is not within the workspace"
+        return
+    fi
+
+    java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) $@
+}
+
 ij () {
 	if [ $# -eq 1 ] && [ -d $1  ]; then
 		openDir=$1
@@ -46,6 +55,12 @@ ij () {
 	else
 		openDir=$(pwd)
 	fi
+
+	# Only open intellij on GIT Roots.
+    if git rev-parse --show-toplevel &> /dev/null; then
+        openDir=$(cd ${openDir} && git rev-parse --show-toplevel) &> /dev/null
+    fi
+
 	${PathToIntelliJ} ${openDir}
 }
 
@@ -55,7 +70,7 @@ function cdWrap() {
     if [ $# -ne 0 ] && [ -f $1 ] && [[ $(echo $1 | egrep "/src/") != "" ]]; then
         cd $(echo $1 | awk -F"/src/" '{print $1}')
     elif [[ $1 =~ ^.*\.pom\.xml$ ]]; then
-	cd $(echo $1 | rev | cut -f2- -d '/' | rev)
+	    cd $(echo $1 | rev | cut -f2- -d '/' | rev)
     else
         cd $1
     fi

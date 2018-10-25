@@ -154,6 +154,15 @@ function gitWrapHelperFunctions() {
         fi
     }
 
+    function testVar() {
+        if [ -z ${(P)1} ]; then
+            echoerr "$1 has not been set."
+            return 1
+        fi
+
+        return $( test ${(P)1} -eq 1 );
+    }
+
     function cleanGitHelpers() {
         # Unsets all functions in this file.
         unset -f $(egrep "function.*\(\) \{$"  ${JRC_BASE_PATH}git/_gitHelpers.sh | egrep -v "^function gitWrapHelperFunctions\(\) \{$" | awk '{print $2}' | cut -f1 -d '(')

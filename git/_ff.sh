@@ -29,7 +29,7 @@ function preffHook() {
     if [ ${#ARGS[@]} -eq 3 ]; then
         ARGS=(${ffmerge} ${ffonly} "${ARGS[2]}/${ARGS[3]}")
     elif [ ${#ARGS[@]} -eq 2 ]; then
-        if [[ ${ARGS[2]} =~ ^.*/.* ]] || [[ ${FFORIGIN} -eq 0 ]]; then
+        if [[ ${ARGS[2]} =~ ^.*/.* ]] || ! testVar FFORIGIN; then
             ARGS=(${ffmerge} ${ffonly} "${ARGS[2]}")
         else 
             # if it's not a branch then we're assuming they gave the remote and they want the current branch

@@ -6,7 +6,7 @@ ASSUME_ORIGIN=1
 function prepushHook() {
     C getGitURL $@
 
-    if [ ${ASSUME_ORIGIN} -eq 0 ] && [ ${#ARGS[@]} -ne 3 ]; then
+    if ! testVar ASSUME_ORIGIN && [ ${#ARGS[@]} -ne 3 ]; then
         return 0
     fi
 
@@ -15,7 +15,7 @@ function prepushHook() {
         return 0
     fi
 
-    if [ ${AUTO_SET_REMOTE} -eq 0 ]; then
+    if ! testVar AUTO_SET_REMOTE; then
         setUpstream=""
     else
         setUpstream="--set-upstream"

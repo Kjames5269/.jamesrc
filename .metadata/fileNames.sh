@@ -1,7 +1,5 @@
 #!/usr/bin/env sh
 
-JRC_BASE_PATH="${HOME}/.jamesrc/"
-
 JRC_META_PATH="${JRC_BASE_PATH}.metadata/"
 
 JRC_GIT_NAMES="${JRC_META_PATH}meta-gitNames"

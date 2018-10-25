@@ -1,6 +1,8 @@
 #!/bin/sh
 
-source "${HOME}/.jamesrc/.metadata/fileNames.sh"
+# Setup Files
+JRC_BASE_PATH="$(dirname $0)/"
+source "${JRC_BASE_PATH}.metadata/fileNames.sh"
 
 for i in $(find ${JRC_BASE_PATH} -name '_*.sh'); do
 	source $i

@@ -19,8 +19,8 @@ function preremoteHook() {
 
         test -z ${name} && return $(echoerr "${ARGS[3]} was not in the list of known names")
 
-        C getUserProj $(${whichGit} config --get remote.origin.url)
-        remoteProjectName=$(echo ${userAndProj} | cut -f2 -d '/')
+        C getUserProjTuple $(${whichGit} config --get remote.origin.url)
+        remoteProjectName=$(echo ${userProjTuple} | cut -f2 -d '/')
 
         ARGS[4]="https://github.com/${name}/${remoteProjectName}"
 
@@ -28,8 +28,8 @@ function preremoteHook() {
 
     elif [ ${#ARGS[@]} -eq 4 ]; then
 
-        C getUserProj ${ARGS[4]}
-        gitName=$(echo ${userAndProj} | cut -f1 -d '/')
+        C getUserProjTuple ${ARGS[4]}
+        gitName=$(echo ${userProjTuple} | cut -f1 -d '/')
 
         if [[ "${gitName}" == "${name}" ]]; then
             DEBUG $0 "Names matched! ${gitName}. HTTPS auto-completion is a thing."
@@ -42,18 +42,6 @@ function preremoteHook() {
         else
             echoinf "updating the alias: ${gitName} from ${name} to ${gitName}..."
             sed -i '' 's/'"${ARGS[3]}:${name}"'/'"${ARGS[3]}:${gitName}"'/' ${JRC_GIT_NAMES}
-        #https://github.com/{user}/{project}
         fi
     fi
-}
-
-function getUserProj() {
-    if [[ ${1} =~ "^.*\.git$" ]]; then
-    # If the remote is ssh it has the following format git@github.com:User/proj.git
-        userAndProj=$(echo ${1} | rev | cut -f1 -d ':' | cut -f2- -d '.' | rev)
-    else
-    # It'll be https://github.com/User/proj
-        userAndProj=$(echo ${1} | rev | cut -f1,2 -d '/' | rev)
-    fi
-    DEBUG $0 "Returning ${userAndProj}"
 }

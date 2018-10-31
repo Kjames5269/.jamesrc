@@ -32,6 +32,7 @@ function postcloneHook() {
 
     user=$(echo ${userProjTuple} | cut -f1 -d '/')
 
+    # Set the project to SSH.
     (
         cd ${proj}
         C ${whichGit} remote set-url origin "git@github.com:${user}/${proj}.git"

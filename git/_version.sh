@@ -9,3 +9,12 @@ function postversionHook() {
     echo "jrc version 0.3-beta (${commitTag})"
     unset commitTag
 }
+
+
+function pre--versionHook() {
+    preversionHook
+}
+
+function post--versionHook() {
+    postversionHook
+}

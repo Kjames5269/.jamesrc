@@ -126,6 +126,13 @@ function cdf () {
 	if [ $# -ne 1 ]; then
 		return 1
 	fi
+	# Check if the directory exist and if so just be a cd clone.
+	if [ -d $1 ]; then
+		cd $1
+		return $?
+	fi
+
+	# Otherwise act as intended and find the directory in the struct
 	# If youve got a larger directory depth than 1000 you got problems
 	len=1000
 	cdfPath=""

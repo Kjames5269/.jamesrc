@@ -53,7 +53,7 @@ function preremoteHook() {
             echo "${ARGS[3]}:${gitName}" >> ${JRC_GIT_NAMES}
             DEBUG $0 "Adding ${ARGS[3]}:${gitName} to ${JRC_GIT_NAMES}"
         else
-            echoinf "updating the alias: ${gitName} from ${name} to ${gitName}..."
+            echoinf "updating the alias: ${ARGS[3]} from ${name} to ${gitName}..."
             sed -i '' 's/'"${ARGS[3]}:${name}"'/'"${ARGS[3]}:${gitName}"'/' ${JRC_GIT_NAMES}
         fi
     fi

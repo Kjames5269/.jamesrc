@@ -19,6 +19,12 @@ function presquashHook() {
 
 }
 
+function preprepforHook() {
+    git squash
+    ARGS[1]="rebase"
+    prerebaseHook ${ARGS[@]}
+}
+
 function postsquashHook() {
     C createLogEntry "squash"
 }

@@ -21,7 +21,6 @@ function gitWrapHelperFunctions() {
         else
             ARGS=($@)
         fi
-
     }
 
     function checkDebugMode() {
@@ -122,11 +121,12 @@ function gitWrapHelperFunctions() {
     }
 
     function getUserProjTuple() {
+        C validateGITURL ${1} || return $?
         C normalizeURL ${1}
 
         if C gitIsSSH ${gitNormalizedURL}; then
         # If the remote is ssh it has the following format git@github.com:User/proj.git
-            userProjTuple=$(echo ${gitNormalizedURL} | rev | cut -f1 -d ':' | cut -f2- -d '.' | rev)
+            userProjTuple=$(echo ${gitNormalizedURL} | rev | cut -f1 -d ':' | rev)
         else
         # It'll be https://github.com/User/proj
             userProjTuple=$(echo ${gitNormalizedURL} | rev | cut -f1,2 -d '/' | rev)
@@ -135,19 +135,36 @@ function gitWrapHelperFunctions() {
         DEBUG $0 "Returning ${userProjTuple}"
     }
 
+    function validateGITURL() {
+        if [[ $1 =~ "^https?://.+\..+/.*/.*$" ]]; then
+            return 0
+        fi
+        DEBUG $0 "$1 is an invalid URL!"
+        return 1
+    }
+
+    function normalizeProj() {
+        if [[ $1 =~ "\.git$" ]]; then
+            echo ${1} | rev | cut -f2- -d '.' | rev
+        else
+            echo ${1}
+        fi
+    }
+
     function normalizeURL() {
         if [[ $1 =~ "^.*/$" ]]; then
-            gitNormalizedURL=$(echo ${1} | rev | cut -c2- | rev)
+            gitNormalizedURL=$(normalizeProj $(echo ${1} | rev | cut -c2- | rev))
         else
-            gitNormalizedURL=${1}
+            gitNormalizedURL=$(normalizeProj ${1})
         fi
+
         DEBUG "trace" $0 "Returning ${gitNormalizedURL}"
     }
 
     function gitIsSSH() {
         test $# -eq 1 || echoerr "$0 requires 1 argument"
 
-        if [[ ${1} =~ "^.*@.*\.git$" ]]; then
+        if [[ ${1} =~ "@" ]]; then
             return 0
         else
             return 1

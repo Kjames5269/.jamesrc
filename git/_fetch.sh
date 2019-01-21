@@ -4,19 +4,19 @@ TIMELY_FETCH=1
 # in minutes
 
 function prefetchHook() {
+    gitFetchSetup || return 0
     updateFetchDate
-
 }
 
 function updateFetchDate() {
-        echo $(date +'%Y%m%d%H%M') > ${GIT_HOME}/.git/CD_LAST_FETCH
+        echo $(date +'%Y%m%d%H%M') > ${gitDirectory}/CD_LAST_FETCH
 }
 
 function checkFetchGuard() {
 
-    if [ -f ${GIT_HOME}/.git/FETCH_GUARD ]; then
+    if [ -f ${gitDirectory}/FETCH_GUARD ]; then
         getPid
-        if [[ $myPid == $(head -1 ${GIT_HOME}/.git/FETCH_GUARD) ]]; then
+        if [[ $myPid == $(head -1 ${gitDirectory}/FETCH_GUARD) ]]; then
             # We are the process who owns the guard (or another process beat us here by a second...)
             unset myPid
             return 0
@@ -24,13 +24,13 @@ function checkFetchGuard() {
         unset myPid
 
 	# Incase it locked it before we entered the PID.
-	if [ -f ${GIT_HOME}/.git/FETCH_GUARD ]; then
+	if [ -f ${gitDirectory}/FETCH_GUARD ]; then
 		return 0
 	fi
 
-        echoinf "Fetch is running with PID $(head -1 ${GIT_HOME}/.git/FETCH_GUARD), waiting..."
+        echoinf "Fetch is running with PID $(head -1 ${gitDirectory}/FETCH_GUARD), waiting..."
 
-        echo "$$" >> ${GIT_HOME}/.git/FETCH_GUARD
+        echo "$$" >> ${gitDirectory}/FETCH_GUARD
         # sleep infinity pls
         sleep 3600
         wait
@@ -39,13 +39,13 @@ function checkFetchGuard() {
 }
 function gitFetch() {
 
-        (getPid && echo ${myPid} > ${GIT_HOME}/.git/FETCH_GUARD ;${whichGit} fetch --all > ${GIT_HOME}/.git/lastFetch; unset myPid)
+        (getPid && echo ${myPid} > ${gitDirectory}/FETCH_GUARD ;${whichGit} fetch --all > ${gitDirectory}/lastFetch; unset myPid)
 
         wait
 
         killFetchGuard
 
-        if [[ $(grep -i ^Fetched ${GIT_HOME}/.git/lastFetch) != "" ]]; then
+        if [[ $(grep -i ^Fetched ${gitDirectory}/lastFetch) != "" ]]; then
             tput sc && tput cuf 300 && echo -e "\033[01;35m!\033[0m" && tput rc
         fi
 
@@ -53,44 +53,56 @@ function gitFetch() {
 
 function killFetchGuard() {
 #Renaming so a new processes doesn't get locked for some reason between wakeup and removal
-        mv ${GIT_HOME}/.git/FETCH_GUARD ${GIT_HOME}/.git/FETCH_GUARD.lock
+        mv ${gitDirectory}/FETCH_GUARD ${gitDirectory}/FETCH_GUARD.lock
 
         # There's no one waiting on us so nobody needs these variables.
-        if [ $(wc -l ${GIT_HOME}/.git/FETCH_GUARD.lock) -eq 1 ]; then
+        if [ $(wc -l ${gitDirectory}/FETCH_GUARD.lock) -eq 1 ]; then
             unset GIT_HOME
             unset whichGit
         fi
 
         # Wake up all people waiting on the fetch to finish
-        for i in $(tail -n +2 ${GIT_HOME}/.git/FETCH_GUARD.lock); do
+        for i in $(tail -n +2 ${gitDirectory}/FETCH_GUARD.lock); do
             pkill -P ${i} sleep
         done
 
-        rm ${GIT_HOME}/.git/FETCH_GUARD.lock
+        rm ${gitDirectory}/FETCH_GUARD.lock
 }
-function autoFetch() {
 
-    gitWrapSetup
-
-    if [ -d "${GIT_HOME}" ]; then
-        if [ -f "${GIT_HOME}/.git/CD_LAST_FETCH" ]; then
-            lastFetch=$(cat "${GIT_HOME}/.git/CD_LAST_FETCH")
-            currDate=$(date +'%Y%m%d%H%M')
-            if [[ $(($currDate - $lastFetch)) -lt $TIMELY_FETCH ]]; then
-                return 0
-            fi
-        fi
-
-        echo $(date +'%Y%m%d%H%M') > ${GIT_HOME}/.git/CD_LAST_FETCH
-
-        ( gitFetch & ) 2>/dev/null
-
-        unset lastFetch
-        unset currDate
+function gitFetchSetup() {
+    if [ -f "${GIT_HOME}/.git" ]; then
+        # echo "This is a file...?"
+        gitDirectory=$(cat "${GIT_HOME}/.git")
+    elif [ -d "${GIT_HOME}/.git" ]; then
+        # echo "Ahh a directory, as it should be"
+        gitDirectory="${GIT_HOME}/.git"
     else
         unset whichGit
         unset GIT_HOME
+        return 1
     fi
+}
+
+function autoFetch() {
+
+    gitWrapSetup
+    gitFetchSetup || return 0
+
+    if [ -f "${gitDirectory}/CD_LAST_FETCH" ]; then
+        lastFetch=$(cat "${gitDirectory}/CD_LAST_FETCH")
+        currDate=$(date +'%Y%m%d%H%M')
+        if [[ $(($currDate - $lastFetch)) -lt $TIMELY_FETCH ]]; then
+            return 0
+        fi
+    fi
+
+    echo $(date +'%Y%m%d%H%M') > ${gitDirectory}/CD_LAST_FETCH
+
+    ( gitFetch & ) 2>/dev/null
+
+    unset lastFetch
+    unset currDate
+    unset gitDirectory
 }
 
 environment=$(echo ${SHELL} | rev | cut -f1 -d '/' | rev)

@@ -6,15 +6,17 @@ gitCloneAutoCD=1
 
 function postcloneHook() {
 
-    if ! testVar gitCloneAutoSSH || [ ${#ARGS[@]} -ne 2 ]; then
+    if ! testVar gitCloneAutoSSH; then
         return
     fi
 
-    tracking=${ARGS[2]}
+    tracking=${ARGS: -1}
     C getUserProjTuple ${tracking}
+    if [ $? -ne 0 ]; then
+        return 0
+    fi
 
     proj=$(echo ${userProjTuple} | cut -f2 -d '/')
-
 
     if C gitIsSSH ${tracking}; then
         DEBUG $0 "Clone'd SSH"
@@ -30,8 +32,6 @@ function postcloneHook() {
         return 0
     fi
 
-    proj=$(normalizeProj ${proj})
-
     user=$(echo ${userProjTuple} | cut -f1 -d '/')
 
     # Set the project to SSH.
@@ -43,12 +43,4 @@ function postcloneHook() {
     testVar gitCloneAutoCD && cd ${proj}
 
     unset user proj userProjTuple
-}
-
-function normalizeProj() {
-    if [[ $1 =~ "\.git$" ]]; then
-        echo ${1} | rev | cut -f2- -d '.' | rev
-    else
-        echo ${1}
-    fi
 }

@@ -19,11 +19,13 @@ function checkMvnValidate() {
 
     if [ -e $2 ]; then
         # This isn't perfect but it should be "good enough"
+        basePath=$(pwd)
         listOfChanged=($(${whichGit} ls-files -m  | grep /src/ | grep $2 | awk -F"/src/" '{print $1}' | uniq))
     elif [ $# -eq 2 ]; then
         cd ${GIT_HOME}
         #listOfChanged=($(${whichGit} status --short | grep /src/ | awk -F"/src/" '{print $1}' | cut -c4- | uniq))
         listOfChanged=($(${whichGit} ls-files -m | grep /src/ | awk -F"/src/" '{print $1}' | uniq))
+        basePath=$(pwd)
         cd - &> /dev/null
     else
         echoerr "This is not yet implemented. Add one file at a time"

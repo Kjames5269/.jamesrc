@@ -38,12 +38,30 @@ purge() {
 }
 
 acDebug() {
+
+    local args=()
+
+    for i in $@; do
+        if [[ $i == "-b" ]]; then
+            acDebug_background="ON"
+            continue
+        fi
+        args=(${args} $i)
+    done
+
     if [ -z ${acdebugger} ]; then
-        echoerr "ACDebugger is not within the workspace"
+        test ! -z ${acDebug_background} && echoerr "ACDebugger is not within the workspace"
+        unset acDebug_background
         return
     fi
 
-    java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) $@
+    if [ -z ${acDebug_background} ]; then
+        java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) ${args[@]}
+    else
+        java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) ${args[@]} &
+        acDebugPid=$!
+        unset acDebug_background
+    fi
 }
 
 ij () {
@@ -158,19 +176,75 @@ function cdf () {
 	unset cdfOptions
 }
 
+# Trap
+function noOP() {
+    local retval=$?
+    echo ""
+    return ${retval}
+}
+
 function start() {
-    if [ $# -ne 1 ]; then
-        echoerr "$0 takes the name of the project to start"
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echoerr "$0 takes the name of the project to start and optionally -n to avoid starting the acDebugger"
         return $?
+
+    elif [ $# -eq 2 ] && [[ $1 == "-n" ]]; then
+        noDebug="true"
+        shift
+
+    elif [ $# -ne 1 ]; then
+        echoerr -e "Invalid parameter \n> $0 '$1' $2"
+        return
     fi
 
-    WORKSPACE=$(cat ${JRC_WORKSPACE})
-    toStart=$(ls -t ${WORKSPACE}../lib/${1}/ | head -1)
+    local WORKSPACE=$(cat ${JRC_WORKSPACE})
+    local project toStart
+
+    if [[ $1 =~ "^.+-.+$" ]]; then
+        project=$(echo $1 | cut -f1 -d '-')
+        toStart=$(ls -t ${WORKSPACE}../lib/${project}/ | grep $1 | head -1)
+    else
+        project=$1
+        toStart=$(ls -t ${WORKSPACE}../lib/${project}/ | head -1)
+    fi
+
+    if [ -z ${toStart} ]; then
+        echoerr "${project} is not a valid project, or your directory structure is busted!"
+        unset noDebug
+        return
+    fi
+
+    if [ -z ${noDebug} ]; then
+        # If the log directory doesn't exist yet... create it!
+        if [ ! -d ${WORKSPACE}../lib/${project}/${toStart}/data/log/ ]; then
+            mkdir -p ${WORKSPACE}../lib/${project}/${toStart}/data/log/
+        fi
+
+        echoinf -n "Starting the AC Debugger on Job: "
+
+        acDebug -b -c -r -w &> "${WORKSPACE}../lib/${project}/${toStart}/data/log/acDebugger.log"
+
+        echoinf "Logging to ${project}/${toStart}/data/log/acDebugger.log"
+    fi
+
     echoinf "Starting ${toStart}"
 
-    ${WORKSPACE}../lib/${1}/${toStart}/bin/${1}
+    # If a user enters Ctrl C we will regain control and shutdown the debugger.
+    trap noOP 2
 
-    unset WORKSPACE
+    ${WORKSPACE}../lib/${project}/${toStart}/bin/${project}
+
+    # Kill the debugger when it's all said and done
+    if [ ! -z ${acDebugPid} ] && ps | egrep "^ *${acDebugPid}" &> /dev/null; then
+        echo "------------------------------------------------------------"
+        echoinf "Shutting down the acDebugger..."
+        kill ${acDebugPid}
+        local file="${WORKSPACE}../lib/${project}/${toStart}/data/log/acDebugger.log"
+        test -f ${file} && cat ${file}
+    fi
+
+	unset acDebugPid noDebug
+
 }
 
 

@@ -45,13 +45,12 @@ function postpubHook() {
 }
 
 function prerequestHook() {
-    DEBUG $0 "lGITURL :: ${lGITURL}"
+    DEBUG $0 "lGIT_URL :: ${lGIT_URL}"
     if [ $# -eq 1 ] && [ ! -z ${lGIT_URL} ]; then
         open ${lGIT_URL}
     else
         unset lGIT_URL
         C getGitURL ${ARGS[@]}
-        DEBUG $0 "lGITURL :: ${lGITURL}"
 
         if [ $? -ne 0 ]; then
             echoerr "git ${ARGS[@]} was not able to obtain the current remote, does the remote exist?"

@@ -315,7 +315,8 @@ build () {
 	fi
 
 	if [ $START -eq $ON ]; then
-		bash $1
+	    # Run Start instead as it should suffice.
+		start $1
 	fi
 
 	alias hero="${TO_PATH}${nonZipDir}${BRANCH}/bin/$1"

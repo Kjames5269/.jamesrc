@@ -12,32 +12,23 @@ function gitWrapHelperFunctions() {
 
     function currBranchCheck() {
         # if the last argument is cb then transform it into the current branch
+        length=$(($# - 1))
+        currBranch=$(cb) 2> /dev/null
+
 	    if [[ ${@: -1} == "cb" ]]; then
-		length=$(($# - 1))
+            ARGS=(${@:1:$length} $currBranch)
 
-		currBranch=$(cb)
+		elif [[ ${@: -1} =~ "^cb:[a-zA-Z0-9]+$" ]]; then
+            local other=$(echo ${@: -1} | cut -f2 -d ':')
+            ARGS=(${@:1:$length} "${currBranch}:${other}")
 
-		ARGS=(${@:1:$length} $currBranch)
+        elif [[ ${@: -1} =~ "^[a-zA-Z0-9]+:cb$" ]]; then
+            local other=$(echo ${@: -1} | cut -f1 -d ':')
+            ARGS=(${@:1:$length} "${other}:${currBranch}")
+
         else
             ARGS=($@)
         fi
-    }
-
-    function checkDebugMode() {
-        case $1 in
-            "debug")
-                GIT_DEBUG=1
-                return 0
-                ;;
-            "trace")
-                GIT_DEBUG=2
-                return 0
-                ;;
-            *)
-                GIT_DEBUG=0
-                return 1
-                ;;
-        esac
     }
 
     function getFirstJiraCommit() {
@@ -98,28 +89,6 @@ function gitWrapHelperFunctions() {
     #This can be done because git only saves dangling commits for so long and having a few months of logs should be more than enough time
     #To realize that you can fix something
 
-    function DEBUG() {
-        # Get the return value of whatever came before it so $? can be used after DEBUG statements
-        debugRetval=$?
-        case $1 in
-            "trace")
-                debugLevel="trace"
-                debugNo=2
-                shift
-                ;;
-            *)
-                debugLevel="debug"
-                debugNo=1
-                ;;
-        esac
-        debugCaller=$1
-        shift
-        test ${GIT_DEBUG} -ge ${debugNo} && echo${debugLevel} "${debugCaller}(): ${@}"
-        unset debugCaller debugNo debugLevel
-
-        return $debugRetval
-    }
-
     function getUserProjTuple() {
         C validateGITURL ${1} || return $?
         C normalizeURL ${1}
@@ -136,7 +105,7 @@ function gitWrapHelperFunctions() {
     }
 
     function validateGITURL() {
-        if [[ $1 =~ "^https?://.+\..+/.*/.*$" ]]; then
+        if [[ $1 =~ "^(https?://.+\.|.+@.+\.).+(/|:).*/.*$" ]]; then
             return 0
         fi
         DEBUG $0 "$1 is an invalid URL!"

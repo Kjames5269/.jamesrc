@@ -40,10 +40,14 @@ purge() {
 acDebug() {
 
     local args=()
+    local acDebugFile=""
 
     for i in $@; do
         if [[ $i == "-b" ]]; then
             acDebug_background="ON"
+            continue
+        elif [ -d "$(echo $i | rev | cut -f2- -d '/' | rev)" ]; then
+            acDebugFile="$i"
             continue
         fi
         args=(${args} $i)
@@ -56,9 +60,9 @@ acDebug() {
     fi
 
     if [ -z ${acDebug_background} ]; then
-        java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) ${args[@]}
+        ( java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) ${args[@]} | tee ${acDebugFile} )
     else
-        java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) ${args[@]} &
+        ( java -jar $(ls ${acdebugger}/debugger/target/*-with-dependencies.jar) ${args[@]} | tee ${acDebugFile} ) &
         acDebugPid=$!
         unset acDebug_background
     fi
@@ -114,8 +118,8 @@ if [ -f ${JRC_WORKSPACE} ]; then
 	# creates a variable to the project for use in shell. ij $ddf
 	for file in $( ls $WORKSPACE ); do
 		tfile=$(echo "$file" | tr - _)
-		if [ -f "${WORKSPACE}${file}/build.config" ]; then
-		    temp=$(grep "master=" ${WORKSPACE}${file}/build.config | cut -f2 -d '=')
+		if isHeroBuildable "${WORKSPACE}${file}"; then
+		    temp=$(getMasterBuilder "${WORKSPACE}${file}")
 		    alias i${tfile}="cd ${WORKSPACE}${file}/${temp}"
 		    export ${tfile}="${WORKSPACE}${file}/${temp}"
 
@@ -198,11 +202,12 @@ function start() {
     fi
 
     local WORKSPACE=$(cat ${JRC_WORKSPACE})
-    local project toStart
+    local project toStart projId
 
     if [[ $1 =~ "^.+-.+$" ]]; then
         project=$(echo $1 | cut -f1 -d '-')
-        toStart=$(ls -t ${WORKSPACE}../lib/${project}/ | grep $1 | head -1)
+        projId=$(echo $1 | cut -f2- -d '-')
+        toStart=$(ls -t ${WORKSPACE}../lib/${project}/ | egrep "${project}.*${projId}" | head -1)
     else
         project=$1
         toStart=$(ls -t ${WORKSPACE}../lib/${project}/ | head -1)
@@ -222,7 +227,7 @@ function start() {
 
         echoinf -n "Starting the AC Debugger on Job: "
 
-        acDebug -b -c -r -w &> "${WORKSPACE}../lib/${project}/${toStart}/data/log/acDebugger.log"
+        acDebug -b -c -r -w "${WORKSPACE}../lib/${project}/${toStart}/data/log/acDebugger.log"
 
         echoinf "Logging to ${project}/${toStart}/data/log/acDebugger.log"
     fi
@@ -238,22 +243,167 @@ function start() {
     if [ ! -z ${acDebugPid} ] && ps | egrep "^ *${acDebugPid}" &> /dev/null; then
         echo "------------------------------------------------------------"
         echoinf "Shutting down the acDebugger..."
-        kill ${acDebugPid}
+        kill -9 -${acDebugPid}
         local file="${WORKSPACE}../lib/${project}/${toStart}/data/log/acDebugger.log"
-        test -f ${file} && cat ${file}
+        test -f ${file} && echo "acDebug logs can be found here: ${file}"
     fi
 
+    trap - SIGINT
+    echo "${acDebugPid}"
 	unset acDebugPid noDebug
 
 }
 
+function mvn2() {
+    mvn $@ "-s" "/Users/kyle.grady/.m2/repoSettings.xml"
+}
 
-function run() {
-    if [ -f $1 ]; then
-        $SHELL $@
-    elif [ -f ~/scripts/$1 ]; then
-        $SHELL ~/scripts/$@
+# When you always forget shasum
+function verify() {
+
+    local sha
+    if [[ $1 =~ "^-a$" ]] && [ $# -eq 4 ]; then
+        if [ ! -f ${4} ]; then
+            echo "$4 does not exist"
+            return 1
+        fi
+        sha=$(shasum $1 $2 $4)
+        shift
+        shift
+    elif [[ $# -eq 2 ]]; then
+        if [ ! -f ${2} ]; then
+            echo "$2 does not exist"
+            return 1
+        fi
+        sha=$(shasum $2)
     else
-        echoerr "> $0 $@ :: $1 not found"
+        echo "Use shasum or \"$0 -a alg sha filename\""
+        return 1
     fi
+
+    diff -bwE <(echo ${sha}) <(echo "$1 $2") &> /dev/null
+    if [ $? -eq 0 ]; then
+        echo "Valid"
+    else
+        echo "Invalid: Sha differs"
+        return 1
+    fi
+}
+
+function untar() {
+    if [ $# -ne 1 ]; then
+        echo "$0 requires the file you wish to untar"
+    elif [[ $1 =~ ^.+\.tar\.gz ]]; then
+        tar xvfz $1
+    elif [[ $1 =~ ^.+\.tar ]]; then
+        tar xvf $1
+    else
+        echo "$1 does not have the tar file endings"
+        return 1
+    fi
+}
+
+function etar() {
+    if [[ $1 == "tar.gz" ]] && [ $# -eq 2 ]; then
+        if [ ! -d "$2" ]; then
+            echo "The directory $2 does not exist"
+            return 1
+        fi
+        tar -czvf "$2.tar.gz" $2
+    elif [[ $1 == "tar" ]] && [ $# -eq 2 ]; then
+        if [ ! -d "$2" ]; then
+            echo "The directory $2 does not exist"
+            return 1
+        fi
+        tar -cvf "$2.tar" $2
+    else
+        if [ ! -d "$1" ]; then
+            echo "The directory $1 does not exist"
+            return 1
+        fi
+        tar -czvf "$1.tar.gz" $1
+    fi
+}
+
+# register script [as alias]
+# Todo :: add unregister command?
+function register() {
+
+    local name script reg length args ans
+
+    # Greater than 3 arguments: second to last being "as" and last being the alias
+    if [ $# -ge 3 ] && [[ ${@: -2:1} == "as" ]] && [ -f $1 ]; then
+        # We want to go 2 space back to not include
+        # As and 1 space forward to ignore the name
+        length=$(($# - 3))
+        name=${@: -1}
+        args=${@:2:${length}}
+    elif [ $# -ge 1 ] && [ -f $1 ]; then
+        # Just ignore the initial name
+        length=$(($# - 1))
+        if [[ $1 =~ "^\.?[a-z][A-Z][0-9]+\.[a-z]*sh$" ]]; then
+            name=$(echo $1 | rev | cut -f2- -d '.' | rev)
+        elif [[ $1 =~ "^\.?.+\.[a-z]*sh$" ]]; then
+            name=$(echo $1 | rev | cut -f1 -d '/' | cut -f2- -d '.' | rev)
+        elif [[ $1 =~ "/" ]]; then
+            name=$(echo $1 | rev | cut -f1 -d '/' | rev)
+        else
+            name=$1
+        fi
+        args=${@:2:${length}}
+    else
+        echoerr "> $0 script [cmds] [as alias]"
+    fi
+
+    if [[ $1 =~ ^/ ]]; then
+        script=$1
+    else
+        script="$(pwd)/$1"
+    fi
+
+    reg=$(egrep "^$name:.+" ${JRC_REGISTERED} 2> /dev/null)
+
+    if [ $? -eq 0 ]; then
+        echo -n "${name} is already aliased to ${script} ${args}. Would you like to override? [y/n]: "
+        read ans
+        if [[ ${ans} != "y" ]]; then
+            return 1
+        fi
+        sed -i '' 's+'"${reg}"'+'"${name}:${script} ${args}"'+' ${JRC_REGISTERED}
+    else
+        echo "${name}:${script} ${args}"
+        echo "${name}:${script} ${args}" >> ${JRC_REGISTERED}
+    fi
+
+    alias ${name}="${script} ${args}"
+}
+
+if [ -f ${JRC_REGISTERED} ]; then
+    while read -r line; do
+        jrc_register_ali=$(echo ${line} | cut -f1 -d ':')
+        jrc_register_scr=$(echo ${line} | cut -f2 -d ':')
+        alias ${jrc_register_ali}="${jrc_register_scr}"
+    done < "${JRC_REGISTERED}"
+    unset jrc_register_ali jrc_register_scr line
+fi
+
+function mod() {
+    retVal=$1
+    while [ ${retVal} -gt $2 ]; do
+        retVal=$((retVal-$2))
+    done
+}
+
+function rainbowEcho() {
+tput sc
+while [ $# -eq 1 ]; do
+    for i in $(seq 1 15); do
+        tput rc
+        for j in $(seq 0 "${#1}"); do
+            mod $((i+j)) "15"
+            printf "\033[38;5;${retVal}m${1:$j:1}\033[0m"
+        done
+        sleep .15
+    done
+done
 }

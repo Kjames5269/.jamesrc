@@ -1,37 +1,25 @@
 #!/bin/sh
+
+changePorts="run changePorts.sh 0 $(ls -t | head -1)"
+
+#ZSH STARTS ARRAYS AT 1 Ahhhhh
+heroBuild() {
+    HERO_BUILD=$1 build ${@:2}
+}
+
 build () {
 
     andClean() {
-        if [ -f ${WORKSPACE}../${CONFIG} ]; then
-        	building=$(grep "building=" ${WORKSPACE}../${CONFIG} | cut -f2 -d '=')
-	        buildingNo=$(($building-1))
-	        sed -i '' 's/building=./building='${buildingNo}'/' ${WORKSPACE}../${CONFIG}
+        if isHeroBuildable "${WORKSPACE}.." && ! [ -z ${buildMaven} ]; then
+        	removeFromBuildConf "${WORKSPACE}.." ${buildMaven}
         fi
-        unset building
-        unset buildingNo
-        unset buildMavenCmd
-        unset buildMaven
-        unset back
-        unset REDIRECTION
-        unset ERROR_REDIRECT
-        unset mvnToRun
-        unset fdir
-        unset nonZipDir
-        unset BRANCH
-        unset ON
-        unset OFF
-        unset CONFIG
-        unset LATEST
-        unset THREADS
-        unset LIB
-        unset MVNCMD
-        unset FROM_PATH
-        unset TO_PATH
+        unset buildMavenCmd buildMaven back
+        unset mvnToRun fdir nonZipDir
+        unset LATEST MVNCMD
+        unset FROM_PATH TO_PATH
 
         return $1
     }
-
-    CONFIG="build.config"
 
 	fdir=$(pwd)
 
@@ -52,22 +40,23 @@ build () {
 
 	#Arguments
 
-	OFF=0
-	ON=1
+	local OFF=0
+	local ON=1
 
-	RESET=$ON
-	LS=$OFF
-	REDIRECTION="${HOME}/lastbuild.log"
-	ERROR_REDIRECT="/dev/stdout"
-	START=$OFF
-	BRANCH=""
-	LATEST=$OFF
-	NULLS=$OFF
+	local RESET=$ON
+	local LS=$OFF
+	local REDIRECTION="${HOME}/lastbuild.log"
+	local ERROR_REDIRECT="/dev/stdout"
+	local START=$OFF
+	local BRANCH=""
+	local LATEST=$OFF
+	local NULLS=$OFF
+	local localHOST=$OFF
 
-	THREADS=8
-	LIB="lib/"
+	local THREADS=8
+	local LIB="lib/"
 
-	FOUND=0
+	local FOUND=0
 
 	while [[ $1 =~ ^-.*$ ]]; do
 		
@@ -88,7 +77,7 @@ build () {
                 echoinf "Directory path defaults reset"
 			    return 0
 			    ;;
-            "-ls")
+            "--ls")
 			    LS=$ON
                 shift
                 continue
@@ -99,10 +88,11 @@ build () {
 			echo -e "Mvn Defaults: $(cat ${JRC_DFLT_MAVEN})\nDirectory Path: $(cat ${JRC_WORKSPACE})"
 			echo -e "Supported args:\n\t-s to skip the build and unzip a new distro\n\t--reset to delete saved data \n\t\t--reset-maven\n\t\t--reset-path)"
 			echo -e "\t-m override using default maven commands (Can't override clean install)\n\t-v verbose to print maven"
-			echo -e "\t-n pipe maven output to /dev/null\n\t-ls to show directories in your saved directory\n\t-[number] change the thread count"
+			echo -e "\t-n pipe maven output to /dev/null\n\t--ls to show directories in your saved directory\n\t-[number] change the thread count"
 			echo -e "\t-b to boot after build (only works for ddf alliance)"
 			echo -e "\t--branch=branchName sets the branch to the given branch instead of the current (stashes changes)"
-			echo -e "\t-l runs git fetch --all; git pull -r. Pray for no merge conflicts"
+			echo -e "\t-p runs git fetch --all; git pull -r. Pray for no merge conflicts"
+			echo -e "\t-l runs on localhost" 
 			echo -e "\nAfter the build name you can add additional maven arguments"
 			echo -e " > build -bm -v ddf [maven commands]"
 			echo -e "\nIf there are any comments or concerns send them here: kyle.grady@connexta.com"
@@ -140,13 +130,16 @@ build () {
                     # Maven gives all the errors this would
                     ERROR_REDIRECT="/dev/null"
                     ;;
-                "l")
+                "p")
                     LATEST=$ON
                     ;;
                 "n")
                     REDIRECTION="/dev/null"
                     NULLS=$ON
                     ;;
+		"l")
+		    localHOST=$ON
+		    ;;
                 *)
                     if [[ $(echo "${1:$i:$len}") =~ ^[0-9]*$ ]]; then
                         THREADS=$(echo "${1:$i:$len}")
@@ -170,30 +163,39 @@ build () {
 	fi
 
 	if [ ! -d $WORKSPACE/$1 ]; then
-		echoerr "The workspace $WORKSPACE$1 invalid"
+		echoerr "The workspace $WORKSPACE/$1 invalid"
 		return 1
 	fi
 
 	unset buildMaven
 	#Done parsing args
-	if [ -f ${WORKSPACE}${1}/${CONFIG} ]; then
+	if isHeroBuildable "${WORKSPACE}${1}"; then
 
-        masterName=$(grep "master=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
-	    building=$(grep "building=" ${WORKSPACE}${1}/${CONFIG} | cut -f2 -d '=')
+        if [ -z ${HERO_BUILD} ]; then
+            masterName=$(getMasterBuilder "${WORKSPACE}${1}")
 
-	    if [ ${building} -eq 1 ]; then
-	        buildMaven="${masterName}"
-	        WORKSPACE="${WORKSPACE}${1}/${buildMaven}/"
-	    elif [ ${building} -eq 0 ]; then
-	    	buildMaven=$(ls -d ${WORKSPACE}${1}/*/ | grep -v "${masterName}$" | head -1 | rev | cut -f2 -d '/' | rev)
-	        WORKSPACE="${WORKSPACE}${1}/${buildMaven}/"
-	        heroBuild=1
+            # Check if there is already a build running...
+            if isCurrentlyBuilding "${WORKSPACE}${1}" ${masterName}; then
+                echoerr "$1 is already building. If you believe this to be an error run"
+                echoerr "> removeFromBuildConf "${WORKSPACE}${1}" ${masterName}"
+                return $(andClean 1)
+            fi
+
+            buildMaven="${masterName}"
+
 	    else
-	        echoerr "Too many builds for now... (who needs to build 3 things anyway??)"
-	        return $?
-	    fi
-	    buildingNo=$(($building+1))
-	    sed -i '' 's/building=./building='${buildingNo}'/' ${WORKSPACE}../${CONFIG}
+            local hero_space=" "
+	    	buildMaven=$(getHeroRepo ${WORKSPACE}${1})
+	    	if [ -z ${buildMaven} ]; then
+	    	    echoerr "There are no available hero slots"
+	    	    echoerr "Current Builds(): " $(getRunningBuilds ${WORKSPACE}${1})
+	    	    return $(andClean 1)
+	    	fi
+
+        fi
+
+        addToBuildConf "${WORKSPACE}${1}" ${buildMaven}
+        WORKSPACE="${WORKSPACE}${1}/${buildMaven}/"
 	    buildMavenCmd=("-s" "/Users/kyle.grady/.m2/${buildMaven}Settings.xml")
 	    back="../../../"
 
@@ -212,7 +214,36 @@ build () {
 	fetched=$OFF
 
 	cd ${WORKSPACE}
-	if [ -z $BRANCH ] && [[ -d ".git" ]]; then
+	# Even if it's a hero build. Dont' bother with git if reset is off.
+	if [ ! -z ${HERO_BUILD} ] && [ ${RESET} -eq ${ON} ]; then
+	    if [[ ! -d ".git" ]]; then
+	        echoerr "This only works with git repos"
+	        return $(andClean 1)
+	    fi
+	    echoinf "Hero building. Aggressively dealing with git"
+        local heroee=$(echo ${HERO_BUILD} | cut -f1 -d ':')
+        BRANCH=$(echo ${HERO_BUILD} | cut -f2 -d ':')
+
+        # Reusing logic from the git-wrapper
+        git remote add ${heroee} &> /dev/null
+
+        # If the branch exist delete it.
+        local branch=$(git rev-parse --verify --quiet ${BRANCH} | head -1)
+        if [ ! -z ${branch} ]; then
+            # checkout the commit the branch is on, then delete the local branch.
+            git checkout ${branch} &> /dev/null
+            git branch -D ${BRANCH}
+        fi
+
+        # fetch all the changes from the hero'ee
+        git fetch ${heroee} &> /dev/null
+
+        # Reusing logic from the git-wrapper
+        git checkout ${HERO_BUILD}
+
+        BRANCH="-${BRANCH}"
+
+	elif [ -z $BRANCH ] && [[ -d ".git" ]]; then
 		BRANCH=$(git branch | grep '\*' | cut -f2 -d '*' | tr ' ' '-')	
 	elif [[ -d .git ]]; then
 		fetched=$ON
@@ -227,7 +258,7 @@ build () {
 		BRANCH="-${BRANCH}"
 	fi
 
-	if [ $LATEST -eq $ON ]; then
+	if [ $LATEST -eq $ON ] && [ ${RESET} -eq ${ON} ] ; then
 		if [ $fetched -eq $OFF ] ;then
 		    if ! git diff-index --quiet HEAD --; then
 		        echoinf "Stashing changes on -${BRANCH}"
@@ -251,7 +282,7 @@ build () {
 		
 		cd ${WORKSPACE}
 
-		echoinf "Maven Building..."
+		echoinf "Maven Building${hero_space}${HERO_BUILD}... "
 
         mvn -T ${THREADS} clean install ${MVNCMD[*]} ${buildMavenCmd} ${@:2} &> "${REDIRECTION}"
 
@@ -305,6 +336,10 @@ build () {
 
 	mv "${TO_PATH}${projname}" "$FROM_PATH"
 	touch "${nonZipDir}"
+
+	if [ ${localHOST} -eq ${OFF} ] && which changePorts &>/dev/null; then
+		changePorts 0 "${nonZipDir}"
+	fi
 
 	if [[ ! -z $BRANCH ]]; then
 	    echoinf "Renaming to ${nonZipDir}${BRANCH}"

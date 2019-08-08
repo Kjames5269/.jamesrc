@@ -4,6 +4,8 @@ if ! [ -f ${JRC_GIT_NAMES} ]; then
     echo "" > "${JRC_GIT_NAMES}"
 fi
 
+REMOTE_ADD_DEFAULT="SSH" #HTTPS
+
 function preremoteHook() {
 
     if [[ ${ARGS[2]} != "add" ]] || [ ${#ARGS[@]} -le 2 ]; then
@@ -24,7 +26,9 @@ function preremoteHook() {
         # The name was not found under our nicknames. If the repo exist then set that as their nickname.
         if [ -z ${name} ]; then
 
-            ARGS[4]="https://github.com/${ARGS[3]}/${remoteProjectName}"
+            C gitGetUrl ${ARGS[3]} ${remoteProjectName} || return 1
+
+            ARGS[4]=${retval}
             C gitRemoteCheck ${ARGS[4]} || return $(echoerr "${ARGS[3]} was not in the list of known names")
 
             # To save time later we'll save the name to avoid making this call again.
@@ -33,7 +37,8 @@ function preremoteHook() {
 
         else
 
-            ARGS[4]="https://github.com/${name}/${remoteProjectName}"
+            C gitGetUrl ${name} ${remoteProjectName} || return 1
+            ARGS[4]=${retval}
 
         fi
 
@@ -66,4 +71,22 @@ function gitRemoteCheck() {
     DEBUG $0 "URL: $1 :: returned: ${temp}"
 
     return $(test ${temp} -eq 200)
+}
+
+function gitGetUrl() {
+
+    if [ $# -ne 2 ]; then
+        echoerr "Not enough args to $0"
+        return 1
+    fi
+
+    if [[ ${REMOTE_ADD_DEFAULT} == "SSH" ]]; then
+        retval="git@github.com:${1}/${2}.git"
+    elif [[ ${REMOTE_ADD_DEFAULT} == "HTTPS" ]]; then
+        retval="https://github.com/${1}/${2}"
+    else
+        echoerr "REMOTE_ADD_DEFAULT is set to ${REMOTE_ADD_DEFAULT} which is not supported"
+        return 1
+    fi
+    return 0
 }

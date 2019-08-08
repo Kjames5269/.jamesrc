@@ -16,19 +16,19 @@ function postcloneHook() {
         return 0
     fi
 
-    proj=$(echo ${userProjTuple} | cut -f2 -d '/')
+    local proj=$(echo ${userProjTuple} | cut -f2 -d '/')
 
     if C gitIsSSH ${tracking}; then
         DEBUG $0 "Clone'd SSH"
-        unset proj userProjTuple
-        testVar gitCloneAutoCD && cd ${proj}
+        unset userProjTuple
+        C testVar gitCloneAutoCD && cd ${proj}
         return
     fi
 
     DEBUG $0 "Clone'd HTTP"
     if ! [[ ${tracking} =~ "^.*github\.com.*$" ]]; then
         DEBUG $0 "Only git repositories are currently supported. (${tracking} does not have github.com within)."
-        unset proj userProjTuple
+        unset userProjTuple
         return 0
     fi
 
@@ -42,5 +42,5 @@ function postcloneHook() {
 
     testVar gitCloneAutoCD && cd ${proj}
 
-    unset user proj userProjTuple
+    unset user userProjTuple
 }

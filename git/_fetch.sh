@@ -14,55 +14,64 @@ function updateFetchDate() {
 
 function checkFetchGuard() {
 
+    C gitFetchSetup || return $?
+
     if [ -f ${gitDirectory}/FETCH_GUARD ]; then
+        DEBUG trace $0 "Guard Exists"
+
         getPid
         if [[ $myPid == $(head -1 ${gitDirectory}/FETCH_GUARD) ]]; then
             # We are the process who owns the guard (or another process beat us here by a second...)
+            DEBUG $0 "${myPid} equals $(head -1 ${gitDirectory}/FETCH_GUARD), we own the guard"
             unset myPid
             return 0
         fi
         unset myPid
 
-	# Incase it locked it before we entered the PID.
-	if [ -f ${gitDirectory}/FETCH_GUARD ]; then
-		return 0
-	fi
+        # Incase it locked it before we entered the PID.
+        if [ ! -f ${gitDirectory}/FETCH_GUARD ]; then
+            DEBUG $0 "Locked the directory before we could put the process to sleep. Good to go"
+            return 0
+        fi
 
         echoinf "Fetch is running with PID $(head -1 ${gitDirectory}/FETCH_GUARD), waiting..."
 
+        DEBUG $0 "Adding $$ to the list of waiters inside ${gitDirectory}/FETCH_GUARD."
         echo "$$" >> ${gitDirectory}/FETCH_GUARD
+        DEBUG $0 "File is now: \n$(cat ${gitDirectory}/FETCH_GUARD)"
+
         # sleep infinity pls
         sleep 3600
         wait
     fi
 
+    DEBUG trace $0 "We're done checking ${gitDirectory}/FETCH_GUARD"
 }
 function gitFetch() {
 
-        (getPid && echo ${myPid} > ${gitDirectory}/FETCH_GUARD ;${whichGit} fetch --all > ${gitDirectory}/lastFetch; unset myPid)
+        DEBUG $0 "Adding our PID to ${gitDirectory}/FETCH_GUARD"
+
+        (getPid && echo ${myPid} > ${gitDirectory}/FETCH_GUARD ;${whichGit} fetch --all &> ${gitDirectory}/lastFetch || echoerr "Failed Fetch" && ${whichGit} diff --quiet && typeset -f preffHook > /dev/null && git ff &> ${gitDirectory}/lastFF; unset myPid)
 
         wait
 
         killFetchGuard
 
-        if [[ $(grep -i ^Fetched ${gitDirectory}/lastFetch) != "" ]]; then
-            tput sc && tput cuf 300 && echo -e "\033[01;35m!\033[0m" && tput rc
+        if [ -f ${gitDirectory}/lastFF ]; then
+            checkDebug || cat ${gitDirectory}/lastFF
+            rm ${gitDirectory}/lastFF
         fi
 
 }
 
 function killFetchGuard() {
 #Renaming so a new processes doesn't get locked for some reason between wakeup and removal
+        DEBUG $0 "Locking ${gitDirectory}/FETCH_GUARD"
         mv ${gitDirectory}/FETCH_GUARD ${gitDirectory}/FETCH_GUARD.lock
-
-        # There's no one waiting on us so nobody needs these variables.
-        if [ $(wc -l ${gitDirectory}/FETCH_GUARD.lock) -eq 1 ]; then
-            unset GIT_HOME
-            unset whichGit
-        fi
 
         # Wake up all people waiting on the fetch to finish
         for i in $(tail -n +2 ${gitDirectory}/FETCH_GUARD.lock); do
+            DEBUG trace $0 "releasing a lock on the process with PID: $i"
             pkill -P ${i} sleep
         done
 
@@ -70,11 +79,12 @@ function killFetchGuard() {
 }
 
 function gitFetchSetup() {
-    if [ -f "${GIT_HOME}/.git" ]; then
-        # echo "This is a file...?"
+    if [ -z ${GIT_HOME} ]; then
+        DEBUG $0 "GIT_HOME is not set"
+        return 1
+    elif [ -f "${GIT_HOME}/.git" ]; then
         gitDirectory=$(cat "${GIT_HOME}/.git")
     elif [ -d "${GIT_HOME}/.git" ]; then
-        # echo "Ahh a directory, as it should be"
         gitDirectory="${GIT_HOME}/.git"
     else
         unset whichGit
@@ -98,7 +108,7 @@ function autoFetch() {
 
     echo $(date +'%Y%m%d%H%M') > ${gitDirectory}/CD_LAST_FETCH
 
-    ( gitFetch & ) 2>/dev/null
+    ( gitFetch & ) # 2>/dev/null
 
     unset lastFetch
     unset currDate
@@ -109,6 +119,7 @@ environment=$(echo ${SHELL} | rev | cut -f1 -d '/' | rev)
 
 case ${environment} in
     "zsh")
+        # TODO:: Make this into a function hook.
         function precmd() {
             autoFetch
         }

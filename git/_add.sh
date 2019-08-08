@@ -8,11 +8,14 @@ function preaddHook() {
      fi
 
      C checkMvnValidate $@
+     retval=$?
 
      unset listOfChanged
      unset mavenFmtDirName
      unset mavenFmtDirErrors
      unset basePath
+
+     return ${retval}
 }
 
 function checkMvnValidate() {
@@ -110,7 +113,7 @@ function checkMvnValidate() {
             for i in $(/bin/ls ${mavenFmtDirErrors}); do
                 alias ferr${i}="cat ${mavenFmtDirErrors}/${i}"
             done
-            return $?
+            return 1
         fi
 
         rm -d ${mavenFmtDirErrors}
@@ -127,7 +130,7 @@ function mvnFmt() {
 
     mkdir ${mavenFmtDirName}${myPid}
 
-    test -z ${GIT_DEBUG} || extraInfoPID="$myPid"
+    checkDebug || extraInfoPID="$myPid"
 
     echoinf "mvn validate: $1 ${extraInfoPID}"
 

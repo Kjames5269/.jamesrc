@@ -24,8 +24,9 @@ function gitWrapSetup() {
         alias git=gitWrap
     fi
 
-    GIT_HOME=$(${whichGit} rev-parse --show-toplevel) &> /dev/null
     GIT_OUTPUT="/dev/stdout"
+    GIT_HOME=$(${whichGit} rev-parse --show-toplevel) 2> /dev/null
+
 }
 
 function gitWrap() {
@@ -43,19 +44,19 @@ function gitWrap() {
 
         cleanGitHelpers
         unset GIT_OUTPUT
-        unset GIT_DEBUG debugRetval
     }
 
     # --------------------------------------
 
     # Give us access to the helper functions
     gitWrapHelperFunctions
-    checkDebugMode $1 && shift
-    currBranchCheck $@
-    gitWrapSetup
+    C currBranchCheck $@
+    C gitWrapSetup
 
     # # # # # # # # # # # # # # # # # # # # #
     # -- PreHooks
+    #  For a prehook to return successfully
+    #  have it return 2
     #
     if typeset -f pre$1Hook > /dev/null; then
 
@@ -69,6 +70,8 @@ function gitWrap() {
     fi
 
     # --------------------------------------
+
+    test -z ${whichGit} && return 1
 
 	C ${whichGit} ${ARGS[@]} &> ${GIT_OUTPUT}
 

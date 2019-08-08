@@ -62,7 +62,7 @@ function prerequestHook() {
 
 }
 
-function getGitURL() {
+function getGithubURL() {
 
     if [ $# -lt 2 ]; then
         tracking=$(${whichGit} for-each-ref --format='%(upstream:short)' $(${whichGit} symbolic-ref -q HEAD)) 2> /dev/null
@@ -107,5 +107,12 @@ function getGitURL() {
     lGIT_URL=${lGIT_URL}${lGIT_BRANCH}
     unset lGIT_BRANCH
     unset gitURLArgs
+
+}
+
+function getGitURL() {
+    local URL=$(${whichGit} config --get remote.origin.url)
+    C getGithubURL $@
+    DEBUG $0 "lGIT_URL :: ${lGIT_URL}"
 
 }
